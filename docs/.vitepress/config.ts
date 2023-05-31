@@ -4,6 +4,7 @@ import { default as sup_plugin } from 'markdown-it-sup'
 import { fileURLToPath, URL } from 'node:url'
 
 export default defineConfig({
+  ignoreDeadLinks: true,
   lastUpdated: true,
   cleanUrls: true,
   head: [
