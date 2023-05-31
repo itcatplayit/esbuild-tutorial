@@ -1,6 +1,6 @@
-# Getting Started
+# 快速开始
 
-## Install esbuild
+## 安装 esbuild
 
 First, download and install the esbuild command locally. A prebuilt native executable can be installed using [npm](https://docs.npmjs.com/cli/v8/commands/npm-install) (which is automatically installed when you install the [node](https://nodejs.org/) JavaScript runtime):
 
@@ -102,7 +102,7 @@ The `build` function runs the esbuild executable in a child process and returns 
 
 The bundler outputs code for the browser by default, so no additional configuration is necessary to get started. For development builds you probably want to enable [source maps](./official/api#source-map) with `--sourcemap`, and for production builds you probably want to enable [minification](./official/api#minify) with `--minify`. You probably also want to configure the [target](./official/api#target) environment for the browsers you support so that JavaScript syntax which is too new will be transformed into older JavaScript syntax. All of that might looks something like this:
 
-::: code-group [.testss]
+::: code-group
 ```:no-line-numbers [CLI]
 esbuild app.jsx --bundle --minify --sourcemap --target=chrome58,firefox57,safari11,edge16
 ```
