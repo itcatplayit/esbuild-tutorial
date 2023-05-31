@@ -1,0 +1,11 @@
+
+.VPHome a {
+  font-weight: 500;
+  color: var(--vp-c-brand);
+  text-decoration-style: dotted;
+  transition: color 0.25s;
+}
+
+.VPHome a:hover {
+  text-decoration: underline;
+}
