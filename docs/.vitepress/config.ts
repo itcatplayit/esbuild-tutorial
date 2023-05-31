@@ -141,16 +141,4 @@ export default defineConfig({
       sup_plugin(md)
     },
   },
-  vite: {
-    resolve: {
-      alias: [
-        {
-          find: /^.*\/VPHome\.vue$/,
-          replacement: fileURLToPath(
-            new URL('./components/VPHome.vue', import.meta.url)
-          )
-        }
-      ]
-    }
-  },
 })
