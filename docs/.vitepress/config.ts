@@ -132,10 +132,6 @@ export default defineConfig({
   markdown: {
     theme: 'material-theme-palenight',
     lineNumbers: true,
-    attrs: {
-      leftDelimiter: '[',
-      rightDelimiter: ']'
-    },
     config: md => { 
       replPlugin(md, { globalEnabledLineNumbers: true })
       sup_plugin(md)
