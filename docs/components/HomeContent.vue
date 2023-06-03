@@ -9,6 +9,7 @@
   let n = null
   let t = null
   const a = function() {
+    if (!progress.value) return
     t || (t = progress.value.getAnimations()[0]),
     t && (progress.value.textContent = Math.floor(t.timeline.currentTime / 1e3) + "s",
     t.playState === "finished" && (clearInterval(n),
