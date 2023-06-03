@@ -1,31 +1,42 @@
 import { inBrowser } from 'vitepress'
-import { onMounted } from 'vue'
+import { type Router } from 'vitepress/client'
+import { onMounted, watch } from 'vue'
 
-export async function useCodeGroups() {
-  if (inBrowser) {
-    const oldLanguage = sessionStorage.getItem('vitepress-markdown-language')
+let prevGroupIndex = 0
+let groupsDoneWork = []
 
-    // set page's language
-    const timer = setTimeout(() => {
-      oldLanguage && Array.from(document?.querySelectorAll('.vp-code-group')).forEach((group, gidx) => {
-        // ------------ language ---------------------
-        const current = group ?.querySelector('div[class*="language-"].active')
-        Array.from(group ?.querySelectorAll('div[class*="language-"]:not(.language-id)')).forEach((next, nidx) => {
-          // language
-          if (next ?.classList.contains(oldLanguage)) {
-            if (current && next && current !== next) {
-              current.classList.remove('active')
-              next.classList.add('active')
-            }
-            const fel = group.querySelectorAll('input')[nidx]
-            fel.click()
+function initCodeGroup() {
+  const oldLanguage = localStorage.getItem('vitepress-markdown-language')
+  // set page's language
+  const timer = setTimeout(() => {
+    oldLanguage && Array.from(document?.querySelectorAll('.vp-code-group')).forEach((group, gidx) => {
+      // ------------ language ---------------------
+      const current = group ?.querySelector('.blocks div[class*="language-"].active')
+      Array.from(group ?.querySelectorAll('.blocks div[class*="language-"]')).forEach((next, nidx) => {
+        // language
+        if (next ?.classList.contains(oldLanguage)) {
+          if (current && next && current !== next) {
+            current.classList.remove('active')
+            next.classList.add('active')
           }
-        })
-        // ------------ language ---------------------
+          const fel = group.querySelectorAll('input')[nidx]
+          fel.click()
+        }
       })
-      clearTimeout(timer)
-    }, 500)
+      // ------------ language ---------------------
+    })
+    clearTimeout(timer)
+  }, 500)
+}
 
+
+export async function useCodeGroups(router: Router) {
+  if (inBrowser) {
+    watch(() => router.route.path, (to, from) => {
+      prevGroupIndex = 0
+      groupsDoneWork = []
+      initCodeGroup()
+    })
 
     window.addEventListener('click', (e) => {
       const el = e.target as HTMLInputElement
@@ -38,39 +49,71 @@ export async function useCodeGroups() {
         const tabname = el.nextElementSibling?.textContent
 
         // language
-        const block = group?.querySelectorAll('div[class*="language-"]:not(.language-id)')?.[i]
+        const block = group?.querySelectorAll('.blocks div[class*="language-"]')?.[i]
         const classList = Array.from(block?.classList || [])
         const language = classList.find(v => v.startsWith('language-'))
 
         if (language?.slice(9)) {
-          sessionStorage.setItem('vitepress-markdown-language', language)
+          localStorage.setItem('vitepress-markdown-language', language)
         }
 
-        Array.prototype.forEach.call(document ?.querySelectorAll('.vp-code-group'), (group, gidx) => {
-          // ------------ tabname/filename ---------------------
-          Array.from(group.querySelectorAll('input')).forEach((fel, fidx) => {
-            if (fel?.nextElementSibling?.textContent === tabname) {
-              if (fel !== el) fel.click()
+        const allgroups = Array.from(document ?.querySelectorAll('.vp-code-group'))
+        for (let gidx = prevGroupIndex, len = allgroups.length; gidx < len; gidx++) {
+          if (groupsDoneWork.includes(gidx)) {
+            if (groupsDoneWork.length === len) {
+              groupsDoneWork = []
+              prevGroupIndex = 0
             }
-          })
+            return
+          }
+          const group = allgroups[gidx]
+          const bls = Array.from(group ?.querySelectorAll('.blocks div[class*="language-"]'))
+          let currentIdx = 0
+          let current = null
+          for (const item of bls) {
+            if (item ?.classList.contains('active')) {
+              current = item
+              break
+            }
+            currentIdx++
+          }
+          if (!current) continue
+          // ------------ tabname/filename ---------------------
+          const oInputs = Array.from(group.querySelectorAll('.tabs input'))
+          for (let i = 0, len = oInputs.length; i < len; i++) {
+            const fel = oInputs[i]
+            if (fel ?.nextElementSibling ?.textContent === tabname) {
+              if (fel !== el && i !== currentIdx) {
+                prevGroupIndex = gidx + 1
+                fel?.click()
+                break  
+              }
+            }
+          }
           // ------------ tabname/filename ---------------------
          
           // ------------ language ---------------------
-          const current = group?.querySelector('div[class*="language-"].active')
-          Array.from(group?.querySelectorAll('div[class*="language-"]:not(.language-id)')).forEach((next, nidx) => {
+          const blds = Array.from(group ?.querySelectorAll('.blocks div[class*="language-"]'))
+          for (let nidx = 0, len = blds.length; nidx < len; nidx++) {
+            const next = blds[nidx]
             // language
             if (next?.classList.contains(language)) {
               if (current && next && current !== next) {
                 current.classList.remove('active')
                 next.classList.add('active')
               }
-              const fel = group.querySelectorAll('input')[nidx]
-              if (fel !== el) fel.click()
+              const fel = group.querySelectorAll('.tabs input')[nidx]
+              if (fel !== el && nidx !== currentIdx) {
+                prevGroupIndex = gidx + 1
+                fel.click()
+                break
+              }
             }
-          })
+          }
           // ------------ language ---------------------
+          groupsDoneWork.push(gidx)
+        }
 
-        })
       }
     })
   }
