@@ -67,7 +67,7 @@
     <figcaption>
       上图：使用默认设置（包括缩小和源码映射）从头开始制作10个<a href="https://github.com/mrdoob/three.js">three.js</a>库副本的生产包的时间。<a href="./official/faq/#benchmark-details">点击此处</a>了解更多信息。
     </figcaption>
-    <p>
+    <p style="width:900px;margin: 0 auto;">
       我们目前的web构建工具比实际速度慢10-100倍。esbuild打包项目的主要目标是带来构建工具性能的新时代，并在此过程中创建一个易于使用的现代打包工具。
     </p>
   </template>
@@ -77,7 +77,7 @@
       library from scratch using default settings, including minification and source maps. More info <a href="./official/faq/#benchmark-details">here</a>
       .
     </figcaption>
-    <p>
+    <p style="width:900px;margin: 0 auto;">
       Our current build tools for the web are 10-100x slower than they could be. The main goal of the esbuild bundler project is to bring about a new era of build tool performance, and create an easy-to-use modern bundler along the way.
     </p>
   </template>
