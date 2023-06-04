@@ -133,8 +133,8 @@ export default defineConfig({
     theme: 'material-theme-palenight',
     lineNumbers: true,
     config: md => { 
-      replPlugin(md, { globalEnabledLineNumbers: true })
-      sup_plugin(md)
+      md.use(replPlugin, { globalEnabledLineNumbers: true })
+      md.use(sup_plugin)
     },
   },
 })
