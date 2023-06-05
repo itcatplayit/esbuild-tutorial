@@ -1422,3 +1422,329 @@ With the current heuristics, large projects should be completely scanned around 
 Note that it is still possible to implement watch mode yourself using esbuild's [rebuild](./official/api#rebuild) API and a file watcher library of your choice if you don't want to use a polling-based approach.
 
 If you are using the CLI, keep in mind that watch mode will be terminated when esbuild's stdin is closed. This prevents esbuild from accidentally outliving the parent process and unexpectedly continuing to consume resources on the system. If you have a use case that requires esbuild to continue to watch forever even when the parent process has finished, you may use `--watch=forever` instead of `--watch`.
+
+## Input
+
+### Entry points
+
+> Supported by: [Build](.official/api/#build)
+
+This is an array of files that each serve as an input to the bundling algorithm. They are called "entry points" because each one is meant to be the initial script that is evaluated which then loads all other aspects of the code that it represents. Instead of loading many libraries in your page with `<script>` tags, you would instead use `import` statements to import them into your entry point (or into another file that is then imported into your entry point).
+
+Simple apps only need one entry point but additional entry points can be useful if there are multiple logically-independent groups of code such as a main thread and a worker thread, or an app with separate relatively unrelated areas such as a landing page, an editor page, and a settings page. Separate entry points helps introduce separation of concerns and helps reduce the amount of unnecessary code that the browser needs to download. If applicable, enabling [code splitting](.official/api/#splitting) can further reduce download sizes when browsing to a second page whose entry point shares some already-downloaded code with a first page that has already been visited.
+
+The simple way to specify entry points is to just pass an array of file paths:
+
+::: code-group
+
+```bash [CLI]
+esbuild home.ts settings.ts --bundle --outdir=out
+```
+
+```js [JS]
+import * as esbuild from 'esbuild'
+
+await esbuild.build({
+  entryPoints: ['home.ts', 'settings.ts'],
+  bundle: true,
+  write: true,
+  outdir: 'out',
+})
+```
+
+```go [Go]
+package main
+
+import "github.com/evanw/esbuild/pkg/api"
+import "os"
+
+func main() {
+  result := api.Build(api.BuildOptions{
+    EntryPoints: []string{"home.ts", "settings.ts"},
+    Bundle:      true,
+    Write:       true,
+    Outdir:      "out",
+  })
+
+  if len(result.Errors) > 0 {
+    os.Exit(1)
+  }
+}
+```
+
+:::
+
+This will generate two output files, `out/home.js` and `out/settings.js` corresponding to the two entry points `home.ts` and `settings.ts`.
+
+For further control over how the paths of the output files are derived from the corresponding input entry points, you should look into these options:
+
+- [Entry names](.official/api/#entry-names)
+- [Out extension](.official/api/#out-extension)
+- [Outbase](.official/api/#outbase)
+- [Outdir](.official/api/#outdir)
+- [Outfile](.official/api/#outfile)
+
+In addition, you can also specify a fully custom output path for each individual entry point using an alternative entry point syntax:
+
+
+::: code-group
+
+```bash [CLI]
+esbuild out1=home.ts out2=settings.ts --bundle --outdir=out
+```
+
+```js [JS]
+import * as esbuild from 'esbuild'
+
+await esbuild.build({
+  entryPoints: [
+    { out: 'out1', in: 'home.ts'},
+    { out: 'out2', in: 'settings.ts'},
+  ],
+  bundle: true,
+  write: true,
+  outdir: 'out',
+})
+```
+
+```go [Go]
+package main
+
+import "github.com/evanw/esbuild/pkg/api"
+import "os"
+
+func main() {
+  result := api.Build(api.BuildOptions{
+    EntryPointsAdvanced: []api.EntryPoint{{
+      OutputPath: "out1",
+      InputPath:  "home.ts",
+    }, {
+      OutputPath: "out2",
+      InputPath:  "settings.ts",
+    }},
+    Bundle: true,
+    Write:  true,
+    Outdir: "out",
+  })
+
+  if len(result.Errors) > 0 {
+    os.Exit(1)
+  }
+}
+```
+
+:::
+
+This will generate two output files, `out/out1.js` and `out/out2.js` corresponding to the two entry points `home.ts` and `settings.ts`.
+
+### Loader
+
+> Supported by: [Build](./official/api#build) and [Transform](./official/api#transform)
+
+This option changes how a given input file is interpreted. For example, the `js` loader interprets the file as JavaScript and the [`css`](./official/content-types/#css) loader interprets the file as CSS. See the [content types](./official/content-types/) page for a complete list of all built-in loaders.
+
+Configuring a loader for a given file type lets you load that file type with an `import` statement or a `require` call. For example, configuring the `.png` file extension to use the [data URL](./official/content-types/#data-url) loader means importing a `.png` file gives you a data URL containing the contents of that image:
+
+```js
+import url from './example.png'
+let image = new Image
+image.src = url
+document.body.appendChild(image)
+
+import svg from './example.svg'
+let doc = new DOMParser().parseFromString(svg, 'application/xml')
+let node = document.importNode(doc.documentElement, true)
+document.body.appendChild(node)
+```
+
+The above code can be bundled using the [build](./official/api#build) API call like this:
+
+::: code-group
+
+```bash [CLI]
+esbuild app.js --bundle --loader:.png=dataurl --loader:.svg=text
+```
+
+```js [JS]
+import * as esbuild from 'esbuild'
+
+await esbuild.build({
+  entryPoints: ['app.js'],
+  bundle: true,
+  loader: {
+    '.png': 'dataurl',
+    '.svg': 'text',
+  },
+  outfile: 'out.js',
+})
+```
+
+```go [Go]
+package main
+
+import "github.com/evanw/esbuild/pkg/api"
+import "os"
+
+func main() {
+  result := api.Build(api.BuildOptions{
+    EntryPoints: []string{"app.js"},
+    Bundle:      true,
+    Loader: map[string]api.Loader{
+      ".png": api.LoaderDataURL,
+      ".svg": api.LoaderText,
+    },
+    Write: true,
+  })
+
+  if len(result.Errors) > 0 {
+    os.Exit(1)
+  }
+}
+```
+
+:::
+
+This option is specified differently if you are using the build API with input from [stdin]((./official/api#stdin), since stdin does not have a file extension. Configuring a loader for stdin with the build API looks like this:
+
+::: code-group
+
+```bash [CLI]
+echo 'import pkg = require("./pkg")' | esbuild --loader=ts --bundle
+```
+
+```js [JS]
+import * as esbuild from 'esbuild'
+
+await esbuild.build({
+  stdin: {
+    contents: 'import pkg = require("./pkg")',
+    loader: 'ts',
+    resolveDir: '.',
+  },
+  bundle: true,
+  outfile: 'out.js',
+})
+```
+
+```go [Go]
+package main
+
+import "github.com/evanw/esbuild/pkg/api"
+import "os"
+
+func main() {
+  result := api.Build(api.BuildOptions{
+    Stdin: &api.StdinOptions{
+      Contents:   "import pkg = require('./pkg')",
+      Loader:     api.LoaderTS,
+      ResolveDir: ".",
+    },
+    Bundle: true,
+  })
+  if len(result.Errors) > 0 {
+    os.Exit(1)
+  }
+}
+```
+
+:::
+
+The [transform](./official/api#transform) API call just takes a single loader since it doesn't involve interacting with the file system, and therefore doesn't deal with file extensions. Configuring a loader (in this case the [`ts`](./official/content-types/#typescript) loader) for the transform API looks like this:
+
+::: code-group
+
+```bash [CLI] $(1)
+echo 'let x: number = 1' | esbuild --loader=ts
+let x = 1;
+```
+
+```js [JS]
+import * as esbuild from 'esbuild'
+
+let ts = 'let x: number = 1'
+let result = await esbuild.transform(ts, {
+  loader: 'ts',
+})
+console.log(result.code)
+```
+
+```go [Go]
+package main
+
+import "fmt"
+import "github.com/evanw/esbuild/pkg/api"
+
+func main() {
+  ts := "let x: number = 1"
+  result := api.Transform(ts, api.TransformOptions{
+    Loader: api.LoaderTS,
+  })
+  if len(result.Errors) == 0 {
+    fmt.Printf("%s", result.Code)
+  }
+}
+```
+
+:::
+
+### Stdin
+
+> Supported by: [Build](./official/api#build)
+
+Normally the build API call takes one or more file names as input. However, this option can be used to run a build without a module existing on the file system at all. It's called "stdin" because it corresponds to piping a file to stdin on the command line.
+
+In addition to specifying the contents of the stdin file, you can optionally also specify the resolve directory (used to determine where relative imports are located), the [sourcefile](./official/api#sourcefile) (the file name to use in error messages and source maps), and the [loader](./official/api#loader) (which determines how the file contents are interpreted). The CLI doesn't have a way to specify the resolve directory. Instead, it's automatically set to the current working directory.
+
+Here's how to use this feature:
+
+::: code-group
+
+```bash [CLI]
+echo 'export * from "./another-file"' | esbuild --bundle --sourcefile=imaginary-file.js --loader=ts --format=cjs
+
+```
+
+```js [JS]
+import * as esbuild from 'esbuild'
+
+let result = await esbuild.build({
+  stdin: {
+    contents: `export * from "./another-file"`,
+
+    // These are all optional:
+    resolveDir: './src',
+    sourcefile: 'imaginary-file.js',
+    loader: 'ts',
+  },
+  format: 'cjs',
+  write: false,
+})
+```
+
+```go [Go]
+package main
+
+import "github.com/evanw/esbuild/pkg/api"
+import "os"
+
+func main() {
+  result := api.Build(api.BuildOptions{
+    Stdin: &api.StdinOptions{
+      Contents: "export * from './another-file'",
+
+      // These are all optional:
+      ResolveDir: "./src",
+      Sourcefile: "imaginary-file.js",
+      Loader:     api.LoaderTS,
+    },
+    Format: api.FormatCommonJS,
+  })
+
+  if len(result.Errors) > 0 {
+    os.Exit(1)
+  }
+}
+```
+
+:::
+
