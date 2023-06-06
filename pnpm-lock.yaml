@@ -8,8 +8,8 @@ devDependencies:
     specifier: 1.0.0-beta.1
     version: 1.0.0-beta.1(@algolia/client-search@4.17.0)
   vitepress-markdown-it-repl:
-    specifier: ^0.1.0
-    version: 0.1.0
+    specifier: ^0.1.1
+    version: 0.1.1
 
 packages:
 
@@ -805,8 +805,8 @@ packages:
       fsevents: 2.3.2
     dev: true
 
-  /vitepress-markdown-it-repl@0.1.0:
-    resolution: {integrity: sha512-b0r+EeAU4YFgCiUmh/Y6jY4w2JyfjcPVfytoF2GziUbtyNy9U2wpcm0zTGYs7pTmqoY2YVCmAja/iOQ5tQu5Jg==}
+  /vitepress-markdown-it-repl@0.1.1:
+    resolution: {integrity: sha512-NrReouOW8pW50NKeCsmP0pRNc9VE1/VGNW3WItUwIYojPw2raqoJ0QFyC7knTo5GrA8X43Mb+f2XcAa84Pp5lg==}
     dependencies:
       '@types/markdown-it': 12.2.3
       markdown-it: 13.0.1

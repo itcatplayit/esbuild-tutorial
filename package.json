@@ -20,7 +20,7 @@
   "devDependencies": {
     "markdown-it-sup": "^1.0.0",
     "vitepress": "1.0.0-beta.1",
-    "vitepress-markdown-it-repl": "^0.1.0"
+    "vitepress-markdown-it-repl": "^0.1.1"
   },
   "scripts": {
     "docs:dev": "vitepress dev docs",
