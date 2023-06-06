@@ -1748,3 +1748,564 @@ func main() {
 
 :::
 
+## Output contents
+
+### Banner
+
+> Supported by: [Build](.official/api/#build) and [Transform](.official/api/#transform)
+
+Use this to insert an arbitrary string at the beginning of generated JavaScript and CSS files. This is commonly used to insert comments:
+
+::: code-group
+
+```bash [CLI]
+esbuild app.js --banner:js=//comment --banner:css=/*comment*/
+```
+
+```js [JS]
+import * as esbuild from 'esbuild'
+
+await esbuild.build({
+  entryPoints: ['app.js'],
+  banner: {
+    js: '//comment',
+    css: '/*comment*/',
+  },
+  outfile: 'out.js',
+})
+```
+
+```go [Go]
+package main
+
+import "github.com/evanw/esbuild/pkg/api"
+import "os"
+
+func main() {
+  result := api.Build(api.BuildOptions{
+    EntryPoints: []string{"app.js"},
+    Banner: map[string]string{
+      "js":  "//comment",
+      "css": "/*comment*/",
+    },
+  })
+
+  if len(result.Errors) > 0 {
+    os.Exit(1)
+  }
+}
+```
+
+:::
+
+This is similar to [footer](.official/api/#footer) which inserts at the end instead of the beginning.
+
+Note that if you are inserting non-comment code into a CSS file, be aware that CSS ignores all `@import` rules that come after a non-`@import` rule (other than a `@charset` rule), so using a banner to inject CSS rules may accidentally disable imports of external stylesheets.
+
+### Charset
+
+> Supported by: [Build](.official/api/#build) and [Transform](.official/api/#transform)
+
+By default esbuild's output is ASCII-only. Any non-ASCII characters are escaped using backslash escape sequences. One reason is because non-ASCII characters are misinterpreted by the browser by default, which causes confusion. You have to explicitly add `<meta charset="utf-8">` to your HTML or serve it with the correct `Content-Type` header for the browser to not mangle your code. Another reason is that non-ASCII characters can significantly [slow down the browser's parser](https://v8.dev/blog/scanner). However, using escape sequences makes the generated output slightly bigger, and also makes it harder to read.
+
+If you would like for esbuild to print the original characters without using escape sequences and you have ensured that the browser will interpret your code as UTF-8, you can disable character escaping by setting the charset:
+
+::: code-group
+
+```bash [CLI] $(1,4)
+echo 'let π = Math.PI' | esbuild
+let \u03C0 = Math.PI;
+
+echo 'let π = Math.PI' | esbuild --charset=utf8
+let π = Math.PI;
+```
+
+```js [JS] $(1,3,5,8>)
+import * as esbuild from 'esbuild'
+
+let js = 'let π = Math.PI'
+
+(await esbuild.transform(js)).code
+'let \\u03C0 = Math.PI;\n'
+
+(await esbuild.transform(js, {
+  charset: 'utf8',
+})).code
+'let π = Math.PI;\n'
+```
+
+```go [Go]
+package main
+
+import "fmt"
+import "github.com/evanw/esbuild/pkg/api"
+
+func main() {
+  js := "let π = Math.PI"
+
+  result1 := api.Transform(js, api.TransformOptions{})
+
+  if len(result1.Errors) == 0 {
+    fmt.Printf("%s", result1.Code)
+  }
+
+  result2 := api.Transform(js, api.TransformOptions{
+    Charset: api.CharsetUTF8,
+  })
+
+  if len(result2.Errors) == 0 {
+    fmt.Printf("%s", result2.Code)
+  }
+}
+```
+
+:::
+
+Some caveats:
+
+- This does not yet escape non-ASCII characters embedded in regular expressions. This is because esbuild does not currently parse the contents of regular expressions at all. The flag was added despite this limitation because it's still useful for code that doesn't contain cases like this.
+
+- This flag does not apply to comments. I believe preserving non-ASCII data in comments should be fine because even if the encoding is wrong, the run time environment should completely ignore the contents of all comments. For example, the [V8 blog post](https://v8.dev/blog/scanner) mentions an optimization that avoids decoding comment contents completely. And all comments other than license-related comments are stripped out by esbuild anyway.
+
+- This option simultaneously applies to all output file types (JavaScript, CSS, and JSON). So if you configure your web server to send the correct `Content-Type` header and want to use the UTF-8 charset, make sure your web server is configured to treat both `.js` and `.css` files as UTF-8.
+
+### Footer
+
+> Supported by: [Build](.official/api/#build) and [Transform](.official/api/#transform)
+
+Use this to insert an arbitrary string at the end of generated JavaScript and CSS files. This is commonly used to insert comments:
+
+::: code-group
+
+```bash [CLI]
+esbuild app.js --footer:js=//comment --footer:css=/*comment*/
+```
+
+```js [JS]
+import * as esbuild from 'esbuild'
+
+await esbuild.build({
+  entryPoints: ['app.js'],
+  footer: {
+    js: '//comment',
+    css: '/*comment*/',
+  },
+  outfile: 'out.js',
+})
+```
+
+```go [Go]
+package main
+
+import "github.com/evanw/esbuild/pkg/api"
+import "os"
+
+func main() {
+  result := api.Build(api.BuildOptions{
+    EntryPoints: []string{"app.js"},
+    Footer: map[string]string{
+      "js":  "//comment",
+      "css": "/*comment*/",
+    },
+  })
+
+  if len(result.Errors) > 0 {
+    os.Exit(1)
+  }
+}
+```
+
+:::
+
+This is similar to [banner](.official/api/#banner) which inserts at the beginning instead of the end.
+
+### Format
+
+> Supported by: [Build](.official/api/#build) and [Transform](.official/api/#transform)
+
+
+This sets the output format for the generated JavaScript files. There are currently three possible values that can be configured: `iife`, `cjs`, and `esm`. When no output format is specified, esbuild picks an output format for you if [bundling](.official/api/#bundle) is enabled (as described below), or doesn't do any format conversion if [bundling](.official/api/#bundle) is disabled.
+
+#### IIFE
+
+The iife format stands for "immediately-invoked function expression" and is intended to be run in the browser. Wrapping your code in a function expression ensures that any variables in your code don't accidentally conflict with variables in the global scope. If your entry point has exports that you want to expose as a global in the browser, you can configure that global's name using the [global name](.official/api/#global-name) setting. The `iife` format will automatically be enabled when no output format is specified, [bundling](.official/api/#bundle) is enabled, and [platform](.official/api/#platform) is set to `browser` (which it is by default). Specifying the `iife` format looks like this:
+
+::: code-group
+
+```bash [CLI] $(1)
+echo 'alert("test")' | esbuild --format=iife
+(() => {
+  alert("test");
+})();
+```
+
+```js [JS]
+import * as esbuild from 'esbuild'
+
+let js = 'alert("test")'
+let result = await esbuild.transform(js, {
+  format: 'iife',
+})
+console.log(result.code)
+```
+
+```go [Go]
+package main
+
+import "fmt"
+import "github.com/evanw/esbuild/pkg/api"
+
+func main() {
+  js := "alert(\"test\")"
+
+  result := api.Transform(js, api.TransformOptions{
+    Format: api.FormatIIFE,
+  })
+
+  if len(result.Errors) == 0 {
+    fmt.Printf("%s", result.Code)
+  }
+}
+```
+
+:::
+
+#### CommonJS
+
+The `cjs` format stands for "CommonJS" and is intended to be run in node. It assumes the environment contains `exports`, `require`, and `module`. Entry points with exports in ECMAScript module syntax will be converted to a module with a getter on `exports` for each export name. The `cjs` format will automatically be enabled when no output format is specified, [bundling](.official/api/#bundle) is enabled, and [platform](.official/api/#platform) is set to `node`. Specifying the `cjs` format looks like this:
+
+::: code-group
+
+```bash [CLI] $(1)
+echo 'export default "test"' | esbuild --format=cjs
+...
+var stdin_exports = {};
+__export(stdin_exports, {
+  default: () => stdin_default
+});
+module.exports = __toCommonJS(stdin_exports);
+var stdin_default = "test";
+```
+
+```js [JS]
+import * as esbuild from 'esbuild'
+
+let js = 'export default "test"'
+let result = await esbuild.transform(js, {
+  format: 'cjs',
+})
+console.log(result.code)
+```
+
+```go [Go]
+package main
+
+import "fmt"
+import "github.com/evanw/esbuild/pkg/api"
+
+func main() {
+  js := "export default 'test'"
+
+  result := api.Transform(js, api.TransformOptions{
+    Format: api.FormatCommonJS,
+  })
+
+  if len(result.Errors) == 0 {
+    fmt.Printf("%s", result.Code)
+  }
+}
+```
+
+:::
+
+#### ESM
+
+The `esm` format stands for "ECMAScript module". It assumes the environment supports `import` and `export` syntax. Entry points with exports in CommonJS module syntax will be converted to a single `default` export of the value of `module.exports`. The `esm` format will automatically be enabled when no output format is specified, [bundling](.official/api/#bundle) is enabled, and [platform](.official/api/#platform) is set to `neutral`. Specifying the `esm` format looks like this:
+
+::: code-group
+
+```bash [CLI] $(1)
+echo 'module.exports = "test"' | esbuild --format=esm
+...
+var require_stdin = __commonJS({
+  "<stdin>"(exports, module) {
+    module.exports = "test";
+  }
+});
+export default require_stdin();
+```
+
+```js [JS]
+import * as esbuild from 'esbuild'
+
+let js = 'module.exports = "test"'
+let result = await esbuild.transform(js, {
+  format: 'esm',
+})
+console.log(result.code)
+```
+
+```go [Go]
+package main
+
+import "fmt"
+import "github.com/evanw/esbuild/pkg/api"
+
+func main() {
+  js := "module.exports = 'test'"
+
+  result := api.Transform(js, api.TransformOptions{
+    Format: api.FormatESModule,
+  })
+
+  if len(result.Errors) == 0 {
+    fmt.Printf("%s", result.Code)
+  }
+}
+```
+
+:::
+
+The `esm` format can be used either in the browser or in node, but you have to explicitly load it as a module. This happens automatically if you `import` it from another module. Otherwise:
+
+In the browser, you can load a module using `<script src="file.js" type="module"></script>`.
+ 
+In node, you can load a module using `node --experimental-modules file.mjs`. Note that node requires the .mjs extension unless you have configured `"type": "module"` in your `package.json` file. You can use the [out extension](.official/api/#out-extension) setting in esbuild to customize the output extension for the files esbuild generates. You can read more about using ECMAScript modules in node [here](https://nodejs.org/api/esm.html).
+
+### Global name
+
+> Supported by: [Build](.official/api/#build) and [Transform](.official/api/#transform)
+
+This option only matters when the [format](.official/api/#format) setting is `iife` (which stands for immediately-invoked function expression). It sets the name of the global variable which is used to store the exports from the entry point:
+
+::: code-group
+
+```bash [CLI]
+echo 'module.exports = "test"' | esbuild --format=iife --global-name=xyz
+
+```
+
+```js [JS]
+import * as esbuild from 'esbuild'
+
+let js = 'module.exports = "test"'
+let result = await esbuild.transform(js, {
+  format: 'iife',
+  globalName: 'xyz',
+})
+console.log(result.code)
+```
+
+```go [Go]
+package main
+
+import "fmt"
+import "github.com/evanw/esbuild/pkg/api"
+
+func main() {
+  js := "module.exports = 'test'"
+
+  result := api.Transform(js, api.TransformOptions{
+    Format:     api.FormatIIFE,
+    GlobalName: "xyz",
+  })
+
+  if len(result.Errors) == 0 {
+    fmt.Printf("%s", result.Code)
+  }
+}
+```
+
+:::
+
+Specifying the global name with the `iife` format will generate code that looks something like this:
+
+```js
+var xyz = (() => {
+  ...
+  var require_stdin = __commonJS((exports, module) => {
+    module.exports = "test";
+  });
+  return require_stdin();
+})();
+```
+
+The global name can also be a compound property expression, in which case esbuild will generate a global variable with that property. Existing global variables that conflict will not be overwritten. This can be used to implement "namespacing" where multiple independent scripts add their exports onto the same global object. For example:
+
+::: code-group
+
+```bash [CLI]
+echo 'module.exports = "test"' | esbuild --format=iife --global-name='example.versions["1.0"]'
+```
+
+```js [JS]
+import * as esbuild from 'esbuild'
+
+let js = 'module.exports = "test"'
+let result = await esbuild.transform(js, {
+  format: 'iife',
+  globalName: 'example.versions["1.0"]',
+})
+console.log(result.code)
+```
+
+```go [Go]
+package main
+
+import "fmt"
+import "github.com/evanw/esbuild/pkg/api"
+
+func main() {
+  js := "module.exports = 'test'"
+
+  result := api.Transform(js, api.TransformOptions{
+    Format:     api.FormatIIFE,
+    GlobalName: `example.versions["1.0"]`,
+  })
+
+  if len(result.Errors) == 0 {
+    fmt.Printf("%s", result.Code)
+  }
+}
+```
+
+:::
+
+The compound global name used above generates code that looks like this:
+
+```js
+var example = example || {};
+example.versions = example.versions || {};
+example.versions["1.0"] = (() => {
+  ...
+  var require_stdin = __commonJS((exports, module) => {
+    module.exports = "test";
+  });
+  return require_stdin();
+})();
+```
+
+### Legal comments
+
+> Supported by: [Build](.official/api/#build) and [Transform](.official/api/#transform)
+
+A "legal comment" is considered to be any statement-level comment in JS or rule-level comment in CSS that contains `@license` or `@preserve` or that starts with `//!` or `/*!`. These comments are preserved in output files by default since that follows the intent of the original authors of the code. However, this behavior can be configured by using one of the following options:
+
+- `none`
+  
+  Do not preserve any legal comments.
+
+- `inline`
+
+  Preserve all legal comments.
+
+- `eof`
+
+  Move all legal comments to the end of the file.
+
+- `linked`
+
+  Move all legal comments to a `.LEGAL.txt` file and link to them with a comment.
+
+- `external`
+
+  Move all legal comments to a `.LEGAL.txt` file but to not link to them.
+
+The default behavior is `eof` when [bundling](.official/api/#bundle) is enabled and `inline` otherwise. Setting the legal comment mode looks like this:
+
+::: code-group
+
+```bash [CLI]
+esbuild app.js --legal-comments=eof
+```
+
+```js [JS]
+import * as esbuild from 'esbuild'
+
+await esbuild.build({
+  entryPoints: ['app.js'],
+  legalComments: 'eof',
+})
+```
+
+```go [Go]
+package main
+
+import "github.com/evanw/esbuild/pkg/api"
+import "os"
+
+func main() {
+  result := api.Build(api.BuildOptions{
+    EntryPoints:   []string{"app.js"},
+    LegalComments: api.LegalCommentsEndOfFile,
+  })
+
+  if len(result.Errors) > 0 {
+    os.Exit(1)
+  }
+}
+```
+
+:::
+
+Note that "statement-level" for JS and "rule-level" for CSS means the comment must appear in a context where multiple statements or rules are allowed such as in the top-level scope or in a statement or rule block. So comments inside expressions or at the declaration level are not considered legal comments.
+
+### Splitting
+
+> Supported by: [Build](.official/api/#build)
+
+::: info
+Code splitting is still a work in progress. It currently only works with the `esm` output [format](.official/api/#format). There is also a known [ordering issue](https://github.com/evanw/esbuild/issues/399) with `import` statements across code splitting chunks. You can follow [the tracking issue](https://github.com/evanw/esbuild/issues/16) for updates about this feature.
+:::
+
+This enables "code splitting" which serves two purposes:
+
+- Code shared between multiple entry points is split off into a separate shared file that both entry points import. That way if the user first browses to one page and then to another page, they don't have to download all of the JavaScript for the second page from scratch if the shared part has already been downloaded and cached by their browser.
+
+- Code referenced through an asynchronous `import()` expression will be split off into a separate file and only loaded when that expression is evaluated. This allows you to improve the initial download time of your app by only downloading the code you need at startup, and then lazily downloading additional code if needed later.
+
+  Without code splitting enabled, an `import()` expression becomes `Promise.resolve().then(() => require())` instead. This still preserves the asynchronous semantics of the expression but it means the imported code is included in the same bundle instead of being split off into a separate file.
+
+When you enable code splitting you must also configure the output directory using the [outdir](.official/api/#outdir) setting:
+
+::: code-group
+
+```bash [CLI]
+esbuild home.ts about.ts --bundle --splitting --outdir=out --format=esm
+```
+
+```js [JS]
+import * as esbuild from 'esbuild'
+
+await esbuild.build({
+  entryPoints: ['home.ts', 'about.ts'],
+  bundle: true,
+  splitting: true,
+  outdir: 'out',
+  format: 'esm',
+})
+```
+
+```go [Go]
+package main
+
+import "github.com/evanw/esbuild/pkg/api"
+import "os"
+
+func main() {
+  result := api.Build(api.BuildOptions{
+    EntryPoints: []string{"home.ts", "about.ts"},
+    Bundle:      true,
+    Splitting:   true,
+    Outdir:      "out",
+    Format:      api.FormatESModule,
+    Write:       true,
+  })
+
+  if len(result.Errors) > 0 {
+    os.Exit(1)
+  }
+}
+```
+
+:::
