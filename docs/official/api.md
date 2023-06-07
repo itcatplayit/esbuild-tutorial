@@ -2309,3 +2309,552 @@ func main() {
 ```
 
 :::
+
+## Output location
+
+### Allow overwrite
+
+> Supported by: [Build](.official/api/#build)
+
+Enabling this setting allows output files to overwrite input files. It's not enabled by default because doing so means overwriting your source code, which can lead to data loss if your code is not checked in. But supporting this makes certain workflows easier by avoiding the need for a temporary directory. So you can enable this when you want to deliberately overwrite your source code:
+
+::: code-group
+
+```bash [CLI]
+esbuild app.js --outdir=. --allow-overwrite
+```
+
+```js [JS]
+import * as esbuild from 'esbuild'
+
+await esbuild.build({
+  entryPoints: ['app.js'],
+  outdir: '.',
+  allowOverwrite: true,
+})
+```
+
+```go [Go]
+package main
+
+import "github.com/evanw/esbuild/pkg/api"
+import "os"
+
+func main() {
+  result := api.Build(api.BuildOptions{
+    EntryPoints:    []string{"app.js"},
+    Outdir:         ".",
+    AllowOverwrite: true,
+  })
+
+  if len(result.Errors) > 0 {
+    os.Exit(1)
+  }
+}
+```
+
+:::
+
+### Asset names
+
+> Supported by: [Build](.official/api/#build)
+
+This option controls the file names of the additional output files generated when the [loader](./api/#loader) is set to [`file`](./content-types/#external-file). It configures the output paths using a template with placeholders that will be substituted with values specific to the file when the output path is generated. For example, specifying an asset name template of `assets/[name]-[hash]` puts all assets into a subdirectory called `assets` inside of the output directory and includes the content hash of the asset in the file name. Doing that looks like this:
+
+::: code-group
+
+```bash [CLI]
+esbuild app.js --asset-names=assets/[name]-[hash] --loader:.png=file --bundle --outdir=out
+```
+
+```js [JS]
+import * as esbuild from 'esbuild'
+
+await esbuild.build({
+  entryPoints: ['app.js'],
+  assetNames: 'assets/[name]-[hash]',
+  loader: { '.png': 'file' },
+  bundle: true,
+  outdir: 'out',
+})
+```
+
+```go [Go]
+package main
+
+import "github.com/evanw/esbuild/pkg/api"
+import "os"
+
+func main() {
+  result := api.Build(api.BuildOptions{
+    EntryPoints: []string{"app.js"},
+    AssetNames:  "assets/[name]-[hash]",
+    Loader: map[string]api.Loader{
+      ".png": api.LoaderFile,
+    },
+    Bundle: true,
+    Outdir: "out",
+  })
+
+  if len(result.Errors) > 0 {
+    os.Exit(1)
+  }
+}
+```
+
+:::
+
+There are four placeholders that can be used in asset path templates:
+
+- `[dir]`
+
+  This is the relative path from the directory containing the asset file to the [outbase](./api/#outbase) directory. Its purpose is to help asset output paths look more aesthetically pleasing by mirroring the input directory structure inside of the output directory.
+
+- `[name]`
+
+  This is the original file name of the asset without the extension. For example, if the asset was originally named `image.png` then `[name]` will be substituted with `image` in the template. It is not necessary to use this placeholder; it only exists to provide human-friendly asset names to make debugging easier.
+
+- `[hash]`
+
+  This is the content hash of the asset, which is useful to avoid name collisions. For example, your code may import `components/button/icon.png` and `components/select/icon.png` in which case you'll need the hash to distinguish between the two assets that are both named `icon`.
+
+- `[ext]`
+
+  This is the file extension of the asset (i.e. everything after the end of the last `.` character). It can be used to put different types of assets into different directories. For example, `--asset-names=assets/[ext]/[name]-[hash]` might write out an asset named `image.png` as `assets/png/image-CQFGD2NG.png`.
+
+Asset path templates do not need to include a file extension. The original file extension of the asset will be automatically added to the end of the output path after template substitution.
+
+This option is similar to the [chunk names](./api/#chunk-names) and [entry names](./api/#entry-names) options.
+
+### Chunk names
+
+> Supported by: [Build](.official/api/#build)
+
+This option controls the file names of the chunks of shared code that are automatically generated when [code splitting](./api/#splitting) is enabled. It configures the output paths using a template with placeholders that will be substituted with values specific to the chunk when the output path is generated. For example, specifying a chunk name template of `chunks/[name]-[hash]` puts all generated chunks into a subdirectory called chunks inside of the output directory and includes the content hash of the chunk in the file name. Doing that looks like this:
+
+::: code-group
+
+```bash [CLI]
+esbuild app.js --chunk-names=chunks/[name]-[hash] --bundle --outdir=out --splitting --format=esm
+```
+
+```js [JS]
+import * as esbuild from 'esbuild'
+
+await esbuild.build({
+  entryPoints: ['app.js'],
+  chunkNames: 'chunks/[name]-[hash]',
+  bundle: true,
+  outdir: 'out',
+  splitting: true,
+  format: 'esm',
+})
+```
+
+```go [Go]
+package main
+
+import "github.com/evanw/esbuild/pkg/api"
+import "os"
+
+func main() {
+  result := api.Build(api.BuildOptions{
+    EntryPoints: []string{"app.js"},
+    ChunkNames:  "chunks/[name]-[hash]",
+    Bundle:      true,
+    Outdir:      "out",
+    Splitting:   true,
+    Format:      api.FormatESModule,
+  })
+
+  if len(result.Errors) > 0 {
+    os.Exit(1)
+  }
+}
+```
+
+:::
+
+There are three placeholders that can be used in chunk path templates:
+
+- `[name]`
+
+  This will currently always be the text `chunk`, although this placeholder may take on additional values in future releases.
+
+- `[hash]`
+
+  This is the content hash of the chunk. Including this is necessary to distinguish different chunks from each other in the case where multiple chunks of shared code are generated.
+
+- `[ext]`
+
+  This is the file extension of the chunk (i.e. everything after the end of the last . character). It can be used to put different types of chunks into different directories. For example, `--chunk-names=chunks/[ext]/[name]-[hash]` might write out a chunk as `chunks/css/chunk-DEFJT7KY.css`.
+
+Chunk path templates do not need to include a file extension. The configured [out extension](./api/#out-extension) for the appropriate content type will be automatically added to the end of the output path after template substitution.
+
+Note that this option only controls the names for automatically-generated chunks of shared code. It does not control the names for output files related to entry points. The names of these are currently determined from the path of the original entry point file relative to the [outbase](./api/#outbase) directory, and this behavior cannot be changed. An additional API option will be added in the future to let you change the file names of entry point output files.
+
+This option is similar to the [asset names](./api/#asset-names) and [entry names](./api/#entry-names) options.
+
+### Entry names
+
+> Supported by: [Build](.official/api/#build)
+
+This option controls the file names of the output files corresponding to each input entry point file. It configures the output paths using a template with placeholders that will be substituted with values specific to the file when the output path is generated. For example, specifying an entry name template of `[dir]/[name]-[hash]` includes a hash of the output file in the file name and puts the files into the output directory, potentially under a subdirectory (see the details about `[dir]` below). Doing that looks like this:
+
+::: code-group
+
+```bash [CLI]
+esbuild src/main-app/app.js --entry-names=[dir]/[name]-[hash] --outbase=src --bundle --outdir=out
+```
+
+```js [JS]
+import * as esbuild from 'esbuild'
+
+await esbuild.build({
+  entryPoints: ['src/main-app/app.js'],
+  entryNames: '[dir]/[name]-[hash]',
+  outbase: 'src',
+  bundle: true,
+  outdir: 'out',
+})
+```
+
+```go [Go]
+package main
+
+import "github.com/evanw/esbuild/pkg/api"
+import "os"
+
+func main() {
+  result := api.Build(api.BuildOptions{
+    EntryPoints: []string{"src/main-app/app.js"},
+    EntryNames:  "[dir]/[name]-[hash]",
+    Outbase:     "src",
+    Bundle:      true,
+    Outdir:      "out",
+  })
+
+  if len(result.Errors) > 0 {
+    os.Exit(1)
+  }
+}
+```
+
+:::
+
+There are four placeholders that can be used in entry path templates:
+
+- `[dir]`
+
+  This is the relative path from the directory containing the input entry point file to the [outbase](./api/#outbase) directory. Its purpose is to help you avoid collisions between identically-named entry points in different subdirectories.
+
+  For example, if there are two entry points `src/pages/home/index.ts` and `src/pages/about/index.ts`, the outbase directory is `src`, and the entry names template is `[dir]/[name]`, the output directory will contain `pages/home/index.js` and `pages/about/index.js`. If the entry names template had been just `[name]` instead, bundling would have failed because there would have been two output files with the same output path `index.js` inside the output directory.
+
+- `[name]`
+
+  This is the original file name of the entry point without the extension. For example, if the input entry point file is named `app.js` then `[name]` will be substituted with `app` in the template.
+
+- `[hash]`
+
+  This is the content hash of the output file, which can be used to take optimal advantage of browser caching. Adding `[hash]` to your entry point names means esbuild will calculate a hash that relates to all content in the corresponding output file (and any output file it imports if [code splitting](./api/#splitting) is active). The hash is designed to change if and only if any of the input files relevant to that output file are changed.
+
+  After that, you can have your web server tell browsers that to cache these files forever (in practice you can say they expire a very long time from now such as in a year). You can then use the information in the [metafile](./api/#metafile) to determine which output file path corresponds to which input entry point so you know what path to include in your `<script>` tag.
+
+- `[ext]`
+
+  This is the file extension that the entry point file will be written out to (i.e. the [out extension](./api/#out-extension) setting, not the original file extension). It can be used to put different types of entry points into different directories. For example, `--entry-names=entries/[ext]/[name]` might write the output file for `app.ts` to `entries/js/app.js`.
+
+Entry path templates do not need to include a file extension. The appropriate [out extension](./api/#out-extension) based on the file type will be automatically added to the end of the output path after template substitution.
+
+This option is similar to the [asset names](./api/#asset-names) and [entry names](./api/#entry-names) options.
+
+### Out extension
+
+> Supported by: [Build](.official/api/#build)
+
+This option lets you customize the file extension of the files that esbuild generates to something other than `.js` or `.css`. In particular, the `.mjs` and `.cjs` file extensions have special meaning in node (they indicate a file in ESM and CommonJS format, respectively). This option is useful if you are using esbuild to generate multiple files and you have to use the [outdir](./api/#outdir) option instead of the [outfile](./api/#outfile) option. You can use it like this:
+
+::: code-group
+
+```bash [CLI]
+esbuild app.js --bundle --outdir=dist --out-extension:.js=.mjs
+```
+
+```js [JS]
+import * as esbuild from 'esbuild'
+
+await esbuild.build({
+  entryPoints: ['app.js'],
+  bundle: true,
+  outdir: 'dist',
+  outExtension: { '.js': '.mjs' },
+})
+```
+
+```go [Go]
+package main
+
+import "github.com/evanw/esbuild/pkg/api"
+import "os"
+
+func main() {
+  result := api.Build(api.BuildOptions{
+    EntryPoints: []string{"app.js"},
+    Bundle:      true,
+    Outdir:      "dist",
+    OutExtension: map[string]string{
+      ".js": ".mjs",
+    },
+    Write: true,
+  })
+
+  if len(result.Errors) > 0 {
+    os.Exit(1)
+  }
+}
+```
+
+:::
+
+### Outbase
+
+> Supported by: [Build](.official/api/#build)
+
+If your build contains multiple entry points in separate directories, the directory structure will be replicated into the [output directory](./api/#outdir) relative to the outbase directory. For example, if there are two entry points `src/pages/home/index.ts` and `src/pages/about/index.ts` and the outbase directory is `src`, the output directory will contain `pages/home/index.js` and `pages/about/index.js`. Here's how to use it:
+
+::: code-group
+
+```bash [CLI]
+esbuild src/pages/home/index.ts src/pages/about/index.ts --bundle --outdir=out --outbase=src
+```
+
+```js [JS]
+import * as esbuild from 'esbuild'
+
+await esbuild.build({
+  entryPoints: [
+    'src/pages/home/index.ts',
+    'src/pages/about/index.ts',
+  ],
+  bundle: true,
+  outdir: 'out',
+  outbase: 'src',
+})
+```
+
+```go [Go]
+package main
+
+import "github.com/evanw/esbuild/pkg/api"
+import "os"
+
+func main() {
+  result := api.Build(api.BuildOptions{
+    EntryPoints: []string{
+      "src/pages/home/index.ts",
+      "src/pages/about/index.ts",
+    },
+    Bundle:  true,
+    Outdir:  "out",
+    Outbase: "src",
+  })
+
+  if len(result.Errors) > 0 {
+    os.Exit(1)
+  }
+}
+```
+
+:::
+
+If the outbase directory isn't specified, it defaults to the [lowest common ancestor](https://en.wikipedia.org/wiki/Lowest_common_ancestor) directory among all input entry point paths. This is `src/pages` in the example above, which means by default the output directory will contain `home/index.js` and `about/index.js` instead.
+
+### Outdir
+
+> Supported by: [Build](.official/api/#build)
+
+This option sets the output directory for the build operation. For example, this command will generate a directory called `out`:
+
+::: code-group
+
+```bash [CLI]
+esbuild app.js --bundle --outdir=out
+```
+
+```js [JS]
+import * as esbuild from 'esbuild'
+
+await esbuild.build({
+  entryPoints: ['app.js'],
+  bundle: true,
+  outdir: 'out',
+})
+```
+
+```go [Go]
+package main
+
+import "github.com/evanw/esbuild/pkg/api"
+import "os"
+
+func main() {
+  result := api.Build(api.BuildOptions{
+    EntryPoints: []string{"app.js"},
+    Bundle:      true,
+    Outdir:      "out",
+  })
+
+  if len(result.Errors) > 0 {
+    os.Exit(1)
+  }
+}
+```
+
+:::
+
+The output directory will be generated if it does not already exist, but it will not be cleared if it already contains some files. Any generated files will silently overwrite existing files with the same name. You should clear the output directory yourself before running esbuild if you want the output directory to only contain files from the current run of esbuild.
+
+If your build contains multiple entry points in separate directories, the directory structure will be replicated into the output directory starting from the [lowest common ancestor](https://en.wikipedia.org/wiki/Lowest_common_ancestor) directory among all input entry point paths. For example, if there are two entry points `src/home/index.ts` and `src/about/index.ts`, the output directory will contain `home/index.js` and `about/index.js`. If you want to customize this behavior, you should change the [outbase directory](./api/#outbase).
+
+### Outfile
+
+> Supported by: [Build](.official/api/#build)
+
+This option sets the output file name for the build operation. This is only applicable if there is a single entry point. If there are multiple entry points, you must use the [outdir](./api/#outdir) option instead to specify an output directory. Using outfile looks like this:
+
+::: code-group
+
+```bash [CLI]
+esbuild app.js --bundle --outfile=out.js
+```
+
+```js [JS]
+import * as esbuild from 'esbuild'
+
+await esbuild.build({
+  entryPoints: ['app.js'],
+  bundle: true,
+  outfile: 'out.js',
+})
+```
+
+```go [Go]
+package main
+
+import "github.com/evanw/esbuild/pkg/api"
+import "os"
+
+func main() {
+  result := api.Build(api.BuildOptions{
+    EntryPoints: []string{"app.js"},
+    Bundle:      true,
+    Outdir:      "out.js",
+  })
+
+  if len(result.Errors) > 0 {
+    os.Exit(1)
+  }
+}
+```
+
+:::
+
+### Public path
+
+> Supported by: [Build](.official/api/#build)
+
+This is useful in combination with the [external file](./content-types/#external-file) loader. By default that loader exports the name of the imported file as a string using the `default` export. The public path option lets you prepend a base path to the exported string of each file loaded by this loader:
+
+::: code-group
+
+```bash [CLI]
+esbuild app.js --bundle --loader:.png=file --public-path=https://www.example.com/v1 --outdir=out
+```
+
+```js [JS]
+import * as esbuild from 'esbuild'
+
+await esbuild.build({
+  entryPoints: ['app.js'],
+  bundle: true,
+  loader: { '.png': 'file' },
+  publicPath: 'https://www.example.com/v1',
+  outdir: 'out',
+})
+```
+
+```go [Go]
+package main
+
+import "github.com/evanw/esbuild/pkg/api"
+import "os"
+
+func main() {
+  result := api.Build(api.BuildOptions{
+    EntryPoints: []string{"app.js"},
+    Bundle:      true,
+    Loader: map[string]api.Loader{
+      ".png": api.LoaderFile,
+    },
+    Outdir:     "out",
+    PublicPath: "https://www.example.com/v1",
+    Write:      true,
+  })
+
+  if len(result.Errors) > 0 {
+    os.Exit(1)
+  }
+}
+```
+
+:::
+
+### Write
+
+> Supported by: [Build](.official/api/#build)
+
+The build API call can either write to the file system directly or return the files that would have been written as in-memory buffers. By default the CLI and JavaScript APIs write to the file system and the Go API doesn't. To use the in-memory buffers:
+
+::: code-group
+
+```js [JS]
+import * as esbuild from 'esbuild'
+
+let result = await esbuild.build({
+  entryPoints: ['app.js'],
+  sourcemap: 'external',
+  write: false,
+  outdir: 'out',
+})
+
+for (let out of result.outputFiles) {
+  console.log(out.path, out.contents, out.text)
+}
+```
+
+```go [Go]
+package main
+
+import "fmt"
+import "github.com/evanw/esbuild/pkg/api"
+import "os"
+
+func main() {
+  result := api.Build(api.BuildOptions{
+    EntryPoints: []string{"app.js"},
+    Sourcemap:   api.SourceMapExternal,
+    Write:       false,
+    Outdir:      "out",
+  })
+
+  if len(result.Errors) > 0 {
+    os.Exit(1)
+  }
+
+  for _, out := range result.OutputFiles {
+    fmt.Printf("%v %v\n", out.Path, out.Contents)
+  }
+}
+```
+
+:::
