@@ -2858,3 +2858,591 @@ func main() {
 ```
 
 :::
+
+## Path resolution
+
+### Alias
+
+> Supported by: [Build](.official/api/#build)
+
+This feature lets you substitute one package for another when bundling. The example below substitutes the package `oldpkg` with the package `newpkg`:
+
+::: code-group
+
+```bash [CLI]
+esbuild app.js --bundle --alias:oldpkg=newpkg
+```
+
+```js [JS]
+import * as esbuild from 'esbuild'
+
+await esbuild.build({
+  entryPoints: ['app.js'],
+  bundle: true,
+  write: true,
+  alias: {
+    'oldpkg': 'newpkg',
+  },
+})
+```
+
+```go [Go]
+package main
+
+import "github.com/evanw/esbuild/pkg/api"
+import "os"
+
+func main() {
+  result := api.Build(api.BuildOptions{
+    EntryPoints: []string{"app.js"},
+    Bundle:      true,
+    Write:       true,
+    Alias: map[string]string{
+      "oldpkg": "newpkg",
+    },
+  })
+
+  if len(result.Errors) > 0 {
+    os.Exit(1)
+  }
+}
+```
+
+:::
+
+These new substitutions happen first before all of esbuild's other path resolution logic. One use case for this feature is replacing a node-only package with a browser-friendly package in third-party code that you don't control.
+
+Note that when an import path is substituted using an alias, the resulting import path is resolved in the working directory instead of in the directory containing the source file with the import path. If needed, the working directory that esbuild uses can be set with the [working directory](./api/#working-directory) feature.
+
+### Conditions
+
+> Supported by: [Build](.official/api/#build)
+
+This feature controls how the `exports` field in `package.json` is interpreted. Custom conditions can be added using the conditions setting. You can specify as many of these as you want and the meaning of these is entirely up to package authors. Node has currently only endorsed the `development` and `production` custom conditions for recommended use. Here is an example of adding the custom conditions `custom1` and `custom2`:
+
+::: code-group
+
+```bash [CLI]
+esbuild src/app.js --bundle --conditions=custom1,custom2
+```
+
+```js [JS]
+import * as esbuild from 'esbuild'
+
+await esbuild.build({
+  entryPoints: ['src/app.js'],
+  bundle: true,
+  conditions: ['custom1', 'custom2'],
+})
+```
+
+```go [Go]
+package main
+
+import "github.com/evanw/esbuild/pkg/api"
+import "os"
+
+func main() {
+  result := api.Build(api.BuildOptions{
+    EntryPoints: []string{"src/app.js"},
+    Bundle:      true,
+    Conditions:  []string{"custom1", "custom2"},
+  })
+
+  if len(result.Errors) > 0 {
+    os.Exit(1)
+  }
+}
+```
+
+:::
+
+#### How conditions work
+
+Conditions allow you to redirect the same import path to different file locations in different situations. The redirect map containing the conditions and paths is stored in the `exports` field in the package's `package.json` file. For example, this would remap `require('pkg/foo')` to `pkg/required.cjs` and `import 'pkg/foo'` to `pkg/imported.mjs` using the `import` and `require` conditions:
+
+```json
+{
+  "name": "pkg",
+  "exports": {
+    "./foo": {
+      "import": "./imported.mjs",
+      "require": "./required.cjs",
+      "default": "./fallback.js"
+    }
+  }
+}
+```
+
+Conditions are checked in the order that they appear within the JSON file. So the example above behaves sort of like this:
+
+```js
+if (importPath === './foo') {
+  if (conditions.has('import')) return './imported.mjs'
+  if (conditions.has('require')) return './required.cjs'
+  return './fallback.js'
+}
+```
+
+By default there are five conditions with special behavior that are built in to esbuild, and cannot be disabled:
+
+- `default`
+
+  This condition is always active. It is intended to come last and lets you provide a fallback for when no other condition applies. This condition is also active when you run your code natively in node.
+
+- `import`
+
+  This condition is only active when the import path is from an ESM `import` statement or `import()` expression. It can be used to provide ESM-specific code. This condition is also active when you run your code natively in node (but only in an ESM context).
+
+- `require`
+
+  This condition is only active when the import path is from a CommonJS `require()` call. It can be used to provide CommonJS-specific code. This condition is also active when you run your code natively in node (but only in a CommonJS context).
+
+- `browser`
+
+  This condition is only active when esbuild's [platform](./api/#platform) setting is set to `browser`. It can be used to provide browser-specific code. This condition is not active when you run your code natively in node.
+
+- `node`
+
+  This condition is only active when esbuild's [platform](./api/#platform) setting is set to `node`. It can be used to provide node-specific code. This condition is also active when you run your code natively in node.
+
+The following condition is also automatically included when the [platform](./api/#platform) is set to either `browser` or `node` and no custom conditions are configured. If there are any custom conditions configured (even an empty list) then this condition will no longer be automatically included:
+
+- module
+
+  This condition can be used to tell esbuild to pick the ESM variant for a given import path to provide better tree-shaking when bundling. This condition is not active when you run your code natively in node. It is specific to bundlers, and originated from Webpack.
+
+Note that when you use the `require` and `import` conditions, *your package may end up in the bundle multiple times!* This is a subtle issue that can cause bugs due to duplicate copies of your code's state in addition to bloating the resulting bundle. This is commonly known as the [dual package hazard](https://nodejs.org/docs/latest/api/packages.html#packages_dual_package_hazard).
+
+One way of avoiding the dual package hazard that works both for bundlers and when running natively in node is to put all of your code in the `require` condition as CommonJS and have the `import` condition just be a light ESM wrapper that calls `require` on your package and re-exports the package using ESM syntax. This approach doesn't provide good tree-shaking, however, as esbuild doesn't tree-shake CommonJS modules.
+
+Another way of avoiding a dual package hazard is to use the bundler-specific `module` condition to direct bundlers to always load the ESM version of your package while letting node always fall back to the CommonJS version of your package. Both `import` and `module` are intended to be used with ESM but unlike `import`, the `module` condition is always active even if the import path was loaded using a `require` call. This works well with bundlers because bundlers support loading ESM using `require`, but it's not something that can work with node because node deliberately doesn't implement loading ESM using `require`.
+
+### External
+
+> Supported by: [Build](.official/api/#build)
+
+You can mark a file or a package as external to exclude it from your build. Instead of being bundled, the import will be preserved (using `require` for the `iife` and `cjs` formats and using `import` for the `esm` format) and will be evaluated at run time instead.
+
+This has several uses. First of all, it can be used to trim unnecessary code from your bundle for a code path that you know will never be executed. For example, a package may contain code that only runs in node but you will only be using that package in the browser. It can also be used to import code in node at run time from a package that cannot be bundled. For example, the `fsevents` package contains a native extension, which esbuild doesn't support. Marking something as external looks like this:
+
+::: code-group
+
+```bash [CLI] $(1,3)
+echo 'require("fsevents")' > app.js
+
+esbuild app.js --bundle --external:fsevents --platform=node
+// app.js
+require("fsevents");
+```
+
+```js [JS]
+import * as esbuild from 'esbuild'
+import fs from 'node:fs'
+
+fs.writeFileSync('app.js', 'require("fsevents")')
+
+await esbuild.build({
+  entryPoints: ['app.js'],
+  outfile: 'out.js',
+  bundle: true,
+  platform: 'node',
+  external: ['fsevents'],
+})
+```
+
+```go [Go]
+package main
+
+import "io/ioutil"
+import "github.com/evanw/esbuild/pkg/api"
+import "os"
+
+func main() {
+  ioutil.WriteFile("app.js", []byte("require(\"fsevents\")"), 0644)
+
+  result := api.Build(api.BuildOptions{
+    EntryPoints: []string{"app.js"},
+    Outfile:     "out.js",
+    Bundle:      true,
+    Write:       true,
+    Platform:    api.PlatformNode,
+    External:    []string{"fsevents"},
+  })
+
+  if len(result.Errors) > 0 {
+    os.Exit(1)
+  }
+}
+```
+
+:::
+
+You can also use the `*` wildcard character in an external path to mark all files matching that pattern as external. For example, you can use `*.png` to remove all `.png` files or `/images/*` to remove all paths starting with `/images/`:
+
+::: code-group
+
+```bash [CLI]
+esbuild app.js --bundle "--external:*.png" "--external:/images/*"
+```
+
+```js [JS]
+import * as esbuild from 'esbuild'
+
+await esbuild.build({
+  entryPoints: ['app.js'],
+  outfile: 'out.js',
+  bundle: true,
+  external: ['*.png', '/images/*'],
+})
+```
+
+```go [Go]
+package main
+
+import "github.com/evanw/esbuild/pkg/api"
+import "os"
+
+func main() {
+  result := api.Build(api.BuildOptions{
+    EntryPoints: []string{"app.js"},
+    Outfile:     "out.js",
+    Bundle:      true,
+    Write:       true,
+    External:    []string{"*.png", "/images/*"},
+  })
+
+  if len(result.Errors) > 0 {
+    os.Exit(1)
+  }
+}
+```
+
+:::
+
+External paths are applied both before and after path resolution, which lets you match against both the import path in the source code and the absolute file system path. The path is considered to be external if the external path matches in either case. The specific behavior is as follows:
+
+- Before path resolution begins, import paths are checked against all external paths. In addition, if the external path looks like a package path (i.e. doesn't start with `/` or `./` or `../`), import paths are checked to see if they have that package path as a path prefix.
+
+  This means that `--external:@foo/bar` implicitly also means `--external:@foo/bar/*` which matches the import path `@foo/bar/baz`. So it marks all paths inside the `@foo/bar` package as external too.
+
+- After path resolution ends, the resolved absolute paths are checked against all external paths that don't look like a package path (i.e. those that start with `/` or `./` or `../`). But before checking, the external path is joined with the current working directory and then normalized, becoming an absolute path (even if it contains a `*` wildcard character).
+
+  This means that you can mark everything in the directory dir as external using `--external:./dir/*`. Note that the leading `./` is important. Using `--external:dir/*` instead is treated as a package path and is not checked for after path resolution ends.
+
+### Main fields
+
+> Supported by: [Build](.official/api/#build)
+
+When you import a package in node, the `main` field in that package's `package.json` file determines which file is imported (along with [a lot of other rules](https://nodejs.org/api/modules.html#all-together)). Major JavaScript bundlers including esbuild let you specify additional `package.json` fields to try when resolving a package. There are at least three such fields commonly in use:
+
+- `main`
+
+  This is [the standard field](https://docs.npmjs.com/files/package.json#main) for all packages that are meant to be used with node. The name `main` is hard-coded in to node's module resolution logic itself. Because it's intended for use with node, it's reasonable to expect that the file path in this field is a CommonJS-style module.
+
+- `module`
+
+  This field came from [a proposal](https://github.com/dherman/defense-of-dot-js/blob/f31319be735b21739756b87d551f6711bd7aa283/proposal.md) for how to integrate ECMAScript modules into node. Because of this, it's reasonable to expect that the file path in this field is an ECMAScript-style module. This proposal wasn't adopted by node (node uses `"type": "module"` instead) but it was adopted by major bundlers because ECMAScript-style modules lead to better [tree shaking](./api/#tree-shaking), or dead code removal.
+
+  For package authors: Some packages incorrectly use the `module` field for browser-specific code, leaving node-specific code for the `main` field. This is probably because node ignores the `module` field and people typically only use bundlers for browser-specific code. However, bundling node-specific code is valuable too (e.g. it decreases download and boot time) and packages that put browser-specific code in module `prevent` bundlers from being able to do tree shaking effectively. If you are trying to publish browser-specific code in a package, use the `browser` field instead.
+
+- `browser`
+
+  This field came from [a proposal](https://gist.github.com/defunctzombie/4339901/49493836fb873ddaa4b8a7aa0ef2352119f69211) that allows bundlers to replace node-specific files or modules with their browser-friendly versions. It lets you specify an alternate browser-specific entry point. Note that it is possible for a package to use both the `browser` and `module` field together (see the note below).
+
+The default main fields depend on the current [platform](./api/#platform) setting. These defaults should be the most widely compatible with the existing package ecosystem. But you can customize them like this if you want to:
+
+::: code-group
+
+```bash [CLI]
+esbuild app.js --bundle --main-fields=module,main
+```
+
+```js [JS]
+import * as esbuild from 'esbuild'
+
+await esbuild.build({
+  entryPoints: ['app.js'],
+  bundle: true,
+  mainFields: ['module', 'main'],
+  outfile: 'out.js',
+})
+```
+
+```go [Go]
+package main
+
+import "github.com/evanw/esbuild/pkg/api"
+import "os"
+
+func main() {
+  result := api.Build(api.BuildOptions{
+    EntryPoints: []string{"app.js"},
+    Bundle:      true,
+    MainFields:  []string{"module", "main"},
+    Write:       true,
+  })
+
+  if len(result.Errors) > 0 {
+    os.Exit(1)
+  }
+}
+```
+
+:::
+
+#### For package authors
+
+If you want to author a package that uses the `browser` field in combination with the `module` field, then you'll probably want to fill _**out all four entries**_ in the full CommonJS-vs-ESM and browser-vs-node compatibility matrix. For that you'll need to use the expanded form of the `browser` field that is a map instead of just a string:
+
+```json
+{
+  "main": "./node-cjs.js",
+  "module": "./node-esm.js",
+  "browser": {
+    "./node-cjs.js": "./browser-cjs.js",
+    "./node-esm.js": "./browser-esm.js"
+  }
+}
+```
+
+The `main` field is expected to be CommonJS while the `module` field is expected to be ESM. The decision about which module format to use is independent from the decision about whether to use a browser-specific or node-specific variant. If you omit one of these four entries, then you risk the wrong variant being chosen. For example, if you omit the entry for the CommonJS browser build, then the CommonJS node build could be chosen instead.
+
+Note that using `main`, `module`, and `browser` is the old way of doing this. There is also a newer way to do this that you may prefer to use instead: the [`exports` field](./api/#how-conditions-work) in `package.json`. It provides a different set of trade-offs. For example, it gives you more precise control over imports for all sub-paths in your package (while `main` fields only give you control over the entry point), but it may cause your package to be imported multiple times depending on how you configure it.
+
+### Node paths
+
+> Supported by: [Build](.official/api/#build)
+
+Node's module resolution algorithm supports an environment variable called [`NODE_PATH`](https://nodejs.org/api/modules.html#modules_loading_from_the_global_folders) that contains a list of global directories to use when resolving import paths. These paths are searched for packages in addition to the `node_modules` directories in all parent directories. You can pass this list of directories to esbuild using an environment variable with the CLI and using an array with the JS and Go APIs:
+
+::: code-group
+
+```bash [CLI]
+NODE_PATH=someDir esbuild app.js --bundle --outfile=out.js
+```
+
+```js [JS]
+import * as esbuild from 'esbuild'
+
+await esbuild.build({
+  nodePaths: ['someDir'],
+  entryPoints: ['app.js'],
+  bundle: true,
+  outfile: 'out.js',
+})
+```
+
+```go [Go]
+package main
+
+import "github.com/evanw/esbuild/pkg/api"
+import "os"
+
+func main() {
+  result := api.Build(api.BuildOptions{
+    NodePaths:   []string{"someDir"},
+    EntryPoints: []string{"app.js"},
+    Bundle:      true,
+    Outfile:     "out.js",
+    Write:       true,
+  })
+
+  if len(result.Errors) > 0 {
+    os.Exit(1)
+  }
+}
+```
+
+:::
+
+If you are using the CLI and want to pass multiple directories using `NODE_PATH`, you will have to separate them with `:` on Unix and `;` on Windows. This is the same format that Node itself uses.
+
+### Packages
+
+> Supported by: [Build](.official/api/#build)
+
+Use this setting to exclude all of your package's dependencies from the bundle. This is useful when [bundling for node](./getting-started/#bundling-for-node) because many npm packages use node-specific features that esbuild doesn't support while bundling (such as `__dirname`, `import.meta.url`, `fs.readFileSync`, and `*.node` native binary modules). Using it looks like this:
+
+::: code-group
+
+```bash [CLI]
+esbuild app.js --bundle --packages=external
+```
+
+```js [JS]
+import * as esbuild from 'esbuild'
+
+await esbuild.build({
+  entryPoints: ['app.js'],
+  bundle: true,
+  packages: 'external',
+})
+```
+
+```go [Go]
+package main
+
+import "github.com/evanw/esbuild/pkg/api"
+import "os"
+
+func main() {
+  result := api.Build(api.BuildOptions{
+    EntryPoints: []string{"app.js"},
+    Bundle:      true,
+    Packages:    api.PackagesExternal,
+  })
+
+  if len(result.Errors) > 0 {
+    os.Exit(1)
+  }
+}
+```
+
+:::
+
+
+Enabling this automatically marks all import paths that look like npm packages (i.e. that don't start with a `.` or `..` path component and that aren't absolute paths) as external. It has the same effect as manually passing each dependency to [external](./api/#external) but is more concise. If you want to customize which of your dependencies are external and which ones aren't, then you should be using [external](./api/#external) instead of this setting.
+
+Note that this setting only has an effect when [bundling](./api/#bundle) is enabled. Also note that marking an import path as external happens after the import path is rewritten by any configured [aliases](./api/#alias), so the alias feature still has an effect when this setting is used.
+
+### Preserve symlinks
+
+> Supported by: [Build](.official/api/#build)
+
+This setting mirrors the [`--preserve-symlinks`](https://nodejs.org/api/cli.html#cli_preserve_symlinks) setting in node. If you use that setting (or the similar [`resolve.symlinks`](https://webpack.js.org/configuration/resolve/#resolvesymlinks) setting in Webpack), you will likely need to enable this setting in esbuild too. It can be enabled like this:
+
+::: code-group
+
+```bash [CLI]
+esbuild app.js --bundle --preserve-symlinks --outfile=out.js
+```
+
+```js [JS]
+import * as esbuild from 'esbuild'
+
+await esbuild.build({
+  entryPoints: ['app.js'],
+  bundle: true,
+  preserveSymlinks: true,
+  outfile: 'out.js',
+})
+```
+
+```go [Go]
+package main
+
+import "github.com/evanw/esbuild/pkg/api"
+import "os"
+
+func main() {
+  result := api.Build(api.BuildOptions{
+    EntryPoints:      []string{"app.js"},
+    Bundle:           true,
+    PreserveSymlinks: true,
+    Outfile:          "out.js",
+  })
+
+  if len(result.Errors) > 0 {
+    os.Exit(1)
+  }
+}
+```
+
+:::
+
+Enabling this setting causes esbuild to determine file identity by the original file path (i.e. the path without following symlinks) instead of the real file path (i.e. the path after following symlinks). This can be beneficial with certain directory structures. Keep in mind that this means a file may be given multiple identities if there are multiple symlinks pointing to it, which can result in it appearing multiple times in generated output files.
+
+*Note: The term "symlink" means [symbolic link](https://en.wikipedia.org/wiki/Symbolic_link) and refers to a file system feature where a path can redirect to another path.*
+
+### Resolve extensions
+
+> Supported by: [Build](.official/api/#build)
+
+The [resolution algorithm used by node](https://nodejs.org/api/modules.html#modules_file_modules) supports implicit file extensions. You can `require('./file')` and it will check for `./file`, `./file.js`, `./file.json`, and `./file.node` in that order. Modern bundlers including esbuild extend this concept to other file types as well. The full order of implicit file extensions in esbuild can be customized using the resolve extensions setting, which defaults to `.tsx,.ts,.jsx,.js,.css,.json`:
+
+::: code-group
+
+```bash [CLI]
+esbuild app.js --bundle --resolve-extensions=.ts,.js
+```
+
+```js [JS]
+import * as esbuild from 'esbuild'
+
+await esbuild.build({
+  entryPoints: ['app.js'],
+  bundle: true,
+  resolveExtensions: ['.ts', '.js'],
+  outfile: 'out.js',
+})
+```
+
+```go [Go]
+package main
+
+import "github.com/evanw/esbuild/pkg/api"
+import "os"
+
+func main() {
+  result := api.Build(api.BuildOptions{
+    EntryPoints:       []string{"app.js"},
+    Bundle:            true,
+    ResolveExtensions: []string{".ts", ".js"},
+    Write:             true,
+  })
+
+  if len(result.Errors) > 0 {
+    os.Exit(1)
+  }
+}
+```
+
+:::
+
+Note that esbuild deliberately does not include the new `.mjs` and `.cjs` extensions in this list. Node's resolution algorithm doesn't treat these as implicit file extensions, so esbuild doesn't either. If you want to import files with these extensions you should either explicitly add the extensions in your import paths or change this setting to include the additional extensions that you want to be implicit.
+
+### Working directory
+
+> Supported by: [Build](.official/api/#build)
+
+This API option lets you specify the working directory to use for the build. It normally defaults to the current [working directory](https://en.wikipedia.org/wiki/Working_directory) of the process you are using to call esbuild's API. The working directory is used by esbuild for a few different things including resolving relative paths given as API options to absolute paths and pretty-printing absolute paths as relative paths in log messages. Here is how to customize esbuild's working directory:
+
+::: code-group
+
+```bash [CLI]
+cd "/var/tmp/custom/working/directory"
+```
+
+```js [JS]
+import * as esbuild from 'esbuild'
+
+await esbuild.build({
+  entryPoints: ['file.js'],
+  absWorkingDir: '/var/tmp/custom/working/directory',
+  outfile: 'out.js',
+})
+```
+
+```go [Go]
+package main
+
+import "github.com/evanw/esbuild/pkg/api"
+import "os"
+
+func main() {
+  result := api.Build(api.BuildOptions{
+    EntryPoints:   []string{"file.js"},
+    AbsWorkingDir: "/var/tmp/custom/working/directory",
+    Outfile:       "out.js",
+  })
+
+  if len(result.Errors) > 0 {
+    os.Exit(1)
+  }
+}
+```
+
+:::
+
+Note: If you are using [Yarn Plug'n'Play](https://yarnpkg.com/features/pnp/), keep in mind that this working directory is used to search for Yarn's manifest file. If you are running esbuild from an unrelated directory, you will have to set this working directory to the directory containing the manifest file (or one of its child directories) for the manifest file to be found by esbuild.
