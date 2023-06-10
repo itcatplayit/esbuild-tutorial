@@ -62,7 +62,7 @@ This should have created a file called `out.js` containing your code and the Rea
 <h1 data-reactroot="">Hello, world!</h1>
 ```
 
-Notice that esbuild also converted JSX syntax to JavaScript without any configuration other than the `.jsx` extension. While esbuild can be configured, it attempts to have reasonable defaults so that many common situations work automatically. If you would like to use JSX syntax in `.js` files instead, you can tell esbuild to allow this using the `--loader:.js=jsx` flag. You can read more about the available configuration options in the [API documentation](./official/api).
+Notice that esbuild also converted JSX syntax to JavaScript without any configuration other than the `.jsx` extension. While esbuild can be configured, it attempts to have reasonable defaults so that many common situations work automatically. If you would like to use JSX syntax in `.js` files instead, you can tell esbuild to allow this using the `--loader:.js=jsx` flag. You can read more about the available configuration options in the [API documentation](./api).
 
 ## Build scripts
 
@@ -100,7 +100,7 @@ The `build` function runs the esbuild executable in a child process and returns 
 
 ## Bundling for the browser
 
-The bundler outputs code for the browser by default, so no additional configuration is necessary to get started. For development builds you probably want to enable [source maps](./official/api#source-map) with `--sourcemap`, and for production builds you probably want to enable [minification](./official/api#minify) with `--minify`. You probably also want to configure the [target](./official/api#target) environment for the browsers you support so that JavaScript syntax which is too new will be transformed into older JavaScript syntax. All of that might looks something like this:
+The bundler outputs code for the browser by default, so no additional configuration is necessary to get started. For development builds you probably want to enable [source maps](./api#source-map) with `--sourcemap`, and for production builds you probably want to enable [minification](./api#minify) with `--minify`. You probably also want to configure the [target](./api#target) environment for the browsers you support so that JavaScript syntax which is too new will be transformed into older JavaScript syntax. All of that might looks something like this:
 
 ::: code-group [.testss]
 ```:no-line-numbers [CLI]
@@ -150,15 +150,15 @@ func main() {
 :::
 
 
-Some npm packages you want to use may not be designed to be run in the browser. Sometimes you can use esbuild's configuration options to work around certain issues and successfully bundle the package anyway. Undefined globals can be replaced with either the [define](./official/api#define) feature in simple cases or the [inject](./official/api#inject) feature in more complex cases.
+Some npm packages you want to use may not be designed to be run in the browser. Sometimes you can use esbuild's configuration options to work around certain issues and successfully bundle the package anyway. Undefined globals can be replaced with either the [define](./api#define) feature in simple cases or the [inject](./api#inject) feature in more complex cases.
 
 ## Bundling for node
 
 Even though a bundler is not necessary when using node, sometimes it can still be beneficial to process your code with esbuild before running it in node. Bundling can automatically strip TypeScript types, convert ECMAScript module syntax to CommonJS, and transform newer JavaScript syntax into older syntax for a specific version of node. And it may be beneficial to bundle your package before publishing it so that it's a smaller download and so it spends less time reading from the file system when being loaded.
 
-If you are bundling code that will be run in node, you should configure the [platform](./official/api#platform) setting by passing `--platform=node` to esbuild. This simultaneously changes a few different settings to node-friendly default values. For example, all packages that are built-in to node such as fs are automatically marked as external so esbuild doesn't try to bundle them. This setting also disables the interpretation of the browser field in `package.json`.
+If you are bundling code that will be run in node, you should configure the [platform](./api#platform) setting by passing `--platform=node` to esbuild. This simultaneously changes a few different settings to node-friendly default values. For example, all packages that are built-in to node such as fs are automatically marked as external so esbuild doesn't try to bundle them. This setting also disables the interpretation of the browser field in `package.json`.
 
-If your code uses newer JavaScript syntax that doesn't work in your version of node, you will want to configure the [target](./official/api#target) version of node:
+If your code uses newer JavaScript syntax that doesn't work in your version of node, you will want to configure the [target](./api#target) version of node:
 
 ::: code-group
 ```:no-line-numbers [CLI]
@@ -201,7 +201,7 @@ func main() {
 ```
 :::
 
-You also may not want to bundle your dependencies with esbuild. There are many node-specific features that esbuild doesn't support while bundling such as `__dirname`, `import.meta.url`, `fs.readFileSync`, and `*.node` native binary modules. You can exclude all of your dependencies from the bundle by setting [packages](./official/api#packages) to external:
+You also may not want to bundle your dependencies with esbuild. There are many node-specific features that esbuild doesn't support while bundling such as `__dirname`, `import.meta.url`, `fs.readFileSync`, and `*.node` native binary modules. You can exclude all of your dependencies from the bundle by setting [packages](./api#packages) to external:
 
 ::: code-group
 ```:no-line-numbers [CLI]
@@ -254,11 +254,11 @@ However, people sometimes get into this situation by installing esbuild on Windo
 
 You can also get into this situation on a macOS computer with an ARM processor if you install esbuild using the ARM version of npm but then try to run esbuild with the x86-64 version of node running inside of [Rosetta](https://en.wikipedia.org/wiki/Rosetta_(software)). In that case, an easy fix is to run your code using the ARM version of node instead, which can be downloaded here: [https://nodejs.org/en/download/](https://nodejs.org/en/download/).
 
-Another alternative is to [use the `esbuild-wasm` package instead](./official/getting-started/#wasm), which works the same way on all platforms. But it comes with a heavy performance cost and can sometimes be 10x slower than the `esbuild` package, so you may also not want to do that.
+Another alternative is to [use the `esbuild-wasm` package instead](./getting-started/#wasm), which works the same way on all platforms. But it comes with a heavy performance cost and can sometimes be 10x slower than the `esbuild` package, so you may also not want to do that.
 
 ## Using Yarn Plug'n'Play
 
-Yarn's [Plug'n'Play](https://yarnpkg.com/features/pnp/) package installation strategy is supported natively by esbuild. To use it, make sure you are running esbuild such that the [current working directory](./official/api/#working-directory) contains Yarn's generated package manifest JavaScript file (either `.pnp.cjs` or `.pnp.js`). If a Yarn Plug'n'Play package manifest is detected, esbuild will automatically resolve package imports to paths inside the `.zip` files in Yarn's package cache, and will automatically extract these files on the fly during bundling.
+Yarn's [Plug'n'Play](https://yarnpkg.com/features/pnp/) package installation strategy is supported natively by esbuild. To use it, make sure you are running esbuild such that the [current working directory](./api/#working-directory) contains Yarn's generated package manifest JavaScript file (either `.pnp.cjs` or `.pnp.js`). If a Yarn Plug'n'Play package manifest is detected, esbuild will automatically resolve package imports to paths inside the `.zip` files in Yarn's package cache, and will automatically extract these files on the fly during bundling.
 
 Because esbuild is written in Go, support for Yarn Plug'n'Play has been completely re-implemented in Go instead of relying on Yarn's JavaScript API. This allows Yarn Plug'n'Play package resolution to integrate well with esbuild's fully parallelized bundling pipeline for maximum speed. Note that Yarn's command-line interface adds a lot of unavoidable performance overhead to every command. For maximum esbuild performance, you may want to consider running esbuild without using Yarn's CLI (i.e. not using yarn esbuild). This can result in esbuild running 10x faster.
 
@@ -323,7 +323,7 @@ The native executable in the `@esbuild/darwin-x64` package is for the macOS oper
 | [@esbuild/win32-ia32](https://www.npmjs.org/package/@esbuild/win32-ia32) | `win32` | `ia32` | [:arrow_down:](https://registry.npmjs.org/@esbuild/win32-ia32/-/win32-ia32-0.17.18.tgz) |
 | [@esbuild/win32-x64](https://www.npmjs.org/package/@esbuild/win32-x64) | `win32` | `x64` | [:arrow_down:](https://registry.npmjs.org/@esbuild/win32-x64/-/win32-x64-0.17.18.tgz) |
 
-**Why this is not recommended**: This approach only works on Unix systems that can run shell scripts, so it will require [WSL](https://learn.microsoft.com/en-us/windows/wsl/) on Windows. An additional drawback is that you cannot use [plugins](./official/plugins/) with the native version of esbuild.
+**Why this is not recommended**: This approach only works on Unix systems that can run shell scripts, so it will require [WSL](https://learn.microsoft.com/en-us/windows/wsl/) on Windows. An additional drawback is that you cannot use [plugins](./plugins/) with the native version of esbuild.
 
 If you choose to write your own code to download esbuild directly from npm, then you are relying on internal implementation details of esbuild's native executable installer. These details may change at some point, in which case this approach will no longer work for new esbuild versions. This is only a minor drawback though since the approach should still work forever for existing esbuild versions (packages published to npm are immutable).
 
@@ -340,7 +340,7 @@ In addition to the `esbuild` npm package, there is also an `esbuild-wasm` packag
 npm install --save-exact esbuild-wasm
 ```
 
-**Why this is not recommended**: The WebAssembly version is much, much slower than the native version. In many cases it is an order of magnitude (i.e. 10x) slower. This is for various reasons including a) node re-compiles the WebAssembly code from scratch on every run, b) Go's WebAssembly compilation approach is single-threaded, and c) node has WebAssembly bugs that can delay the exiting of the process by many seconds. The WebAssembly version also excludes some features such as the local file server. You should only use the WebAssembly package like this if there is no other option, such as when you want to use esbuild on an unsupported platform. The WebAssembly package is primarily intended to only be used [in the browser](./official/api#browser).
+**Why this is not recommended**: The WebAssembly version is much, much slower than the native version. In many cases it is an order of magnitude (i.e. 10x) slower. This is for various reasons including a) node re-compiles the WebAssembly code from scratch on every run, b) Go's WebAssembly compilation approach is single-threaded, and c) node has WebAssembly bugs that can delay the exiting of the process by many seconds. The WebAssembly version also excludes some features such as the local file server. You should only use the WebAssembly package like this if there is no other option, such as when you want to use esbuild on an unsupported platform. The WebAssembly package is primarily intended to only be used [in the browser](./api#browser).
 
 ### Deno instead of node
 
@@ -397,4 +397,4 @@ If you want to build for other platforms, you can just prefix the build command 
 GOOS=linux GOARCH=386 go build ./cmd/esbuild
 ```
 
-**Why this is not recommended**: The native version can only be used via the command-line interface, which can be unergonomic for complex use cases and which does not support [plugins](./official/plugins). You will need to write JavaScript or Go code and use [esbuild's API](./official/api) to use plugins.
+**Why this is not recommended**: The native version can only be used via the command-line interface, which can be unergonomic for complex use cases and which does not support [plugins](./plugins). You will need to write JavaScript or Go code and use [esbuild's API](./api) to use plugins.
