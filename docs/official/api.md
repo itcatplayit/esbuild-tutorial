@@ -4,13 +4,13 @@ The API can be accessed in one of three languages: on the command line, in JavaS
 
 - **CLI**: If you are using the command-line API, it may be helpful to know that the flags come in one of three forms: `--foo`, `--foo=bar`, or `--foo:bar`. The form `--foo` is used for enabling boolean flags such as [--minify](#minify), the form `--foo=bar` is used for flags that have a single value and are only specified once such as [--platform=](#platform), and the form --foo:bar is used for flags that have multiple values and can be re-specified multiple times such as [--external:](#external).
 
-- **JavaScript**: If you are using JavaScript be sure to check out the [JS-specific details](./official/api#js-details) and [browser](./official/api#browser) sections below. You may also find the [TypeScript type definitions](https://github.com/evanw/esbuild/blob/main/lib/shared/types.ts) for esbuild helpful as a reference.
+- **JavaScript**: If you are using JavaScript be sure to check out the [JS-specific details](./api#js-details) and [browser](./api#browser) sections below. You may also find the [TypeScript type definitions](https://github.com/evanw/esbuild/blob/main/lib/shared/types.ts) for esbuild helpful as a reference.
 
 - **Go**: If you are using Go, you may find the automatically generated Go documentation for esbuild helpful as a reference. There is separate documentation for both of the public Go packages: [`pkg/api`](https://pkg.go.dev/github.com/evanw/esbuild/pkg/api) and [`pkg/cli`](https://pkg.go.dev/github.com/evanw/esbuild/pkg/cli).
 
 ## Overview
 
-The two most commonly-used esbuild APIs are [build](./official/api#build) and [transform](./official/api#transform). Each is described below at a high level, followed by documentation for each individual API option.
+The two most commonly-used esbuild APIs are [build](./api#build) and [transform](./api#transform). Each is described below at a high level, followed by documentation for each individual API option.
 
 ### Build
 
@@ -416,7 +416,7 @@ let result2 = await esbuild.build(options)
 
 Pros:
 
-- You can use [plugins](./official/plugins) with the asynchronous API
+- You can use [plugins](./plugins) with the asynchronous API
 - The current thread is not blocked so you can perform other work in the meantime
 - You can run many simultaneous esbuild API calls concurrently which are then spread across all available CPUs for maximum performance
 
@@ -443,7 +443,7 @@ Pros:
 
 Cons:
 
-- You can't use [plugins](./official/plugins) with the synchronous API since plugins are asynchronous
+- You can't use [plugins](./plugins) with the synchronous API since plugins are asynchronous
 - It blocks the current thread so you can't perform other work in the meantime
 - Using the synchronous API prevents esbuild from parallelizing esbuild API calls
 
@@ -541,7 +541,7 @@ func main() {
 
 :::
 
-Refer to the [getting started guide](.official/getting-started/#your-first-bundle) for an example of bundling with real-world code.
+Refer to the [getting started guide](./getting-started/#your-first-bundle) for an example of bundling with real-world code.
 
 Note that bundling is different than file concatenation. Passing esbuild multiple input files with bundling enabled will create multiple separate bundles instead of joining the input files together. To join a set of files together with esbuild, import them all into a single entry point file and bundle just that one file with esbuild.
 
@@ -639,7 +639,7 @@ func main() {
 
 :::
 
-Make sure to wait until the cancel operation is done before starting a new build (i.e. `await` the returned promise when using JavaScript), otherwise the next [rebuild](#rebuild) will give you the just-canceled build that still hasn't ended yet. Note that plugin [on-end callbacks](./official/plugins#on-end) will still be run regardless of whether or not the build was canceled.
+Make sure to wait until the cancel operation is done before starting a new build (i.e. `await` the returned promise when using JavaScript), otherwise the next [rebuild](#rebuild) will give you the just-canceled build that still hasn't ended yet. Note that plugin [on-end callbacks](./plugins#on-end) will still be run regardless of whether or not the build was canceled.
 
 ### Live reload
 
@@ -771,7 +771,7 @@ However, with esbuild's live-reloading you can persist your app's current JavaSc
 
 ### Platform
 
-> Supported by: [Build](./official/api#build) and [Transform](./official/api#transform)
+> Supported by: [Build](./api#build) and [Transform](./api#transform)
 
 By default, esbuild's bundler is configured to generate code intended for the browser. If your bundled code is intended to run in node instead, you should set the platform to `node`:
 
@@ -816,47 +816,47 @@ func main() {
 
 When the platform is set to `browser` (the default value):
 
-- When [bundling](./official/api#bundle) is enabled the default output [format](./official/api#format) is set to `iife`, which wraps the generated JavaScript code in an immediately-invoked function expression to prevent variables from leaking into the global scope.
+- When [bundling](./api#bundle) is enabled the default output [format](./api#format) is set to `iife`, which wraps the generated JavaScript code in an immediately-invoked function expression to prevent variables from leaking into the global scope.
 
 - If a package specifies a map for the [`browser`](https://gist.github.com/defunctzombie/4339901/49493836fb873ddaa4b8a7aa0ef2352119f69211) field in its `package.json` file, esbuild will use that map to replace specific files or modules with their browser-friendly versions. For example, a package might contain a substitution of [`path`](https://nodejs.org/api/path.html) with [`path-browserify`](https://www.npmjs.com/package/path-browserify).
 
-- The [main fields](./official/api#main-fields) setting is set to `browser,module,main` but with some additional special behavior: if a package provides `module` and `main` entry points but not a `browser` entry point then `main` is used instead of `module` if that package is ever imported using `require()`. This behavior improves compatibility with CommonJS modules that export a function by assigning it to `module.exports`. If you want to disable this additional special behavior, you can explicitly set the [main fields](./official/api#main-fields) setting to `browser,module,main`.
+- The [main fields](./api#main-fields) setting is set to `browser,module,main` but with some additional special behavior: if a package provides `module` and `main` entry points but not a `browser` entry point then `main` is used instead of `module` if that package is ever imported using `require()`. This behavior improves compatibility with CommonJS modules that export a function by assigning it to `module.exports`. If you want to disable this additional special behavior, you can explicitly set the [main fields](./api#main-fields) setting to `browser,module,main`.
 
-- The [conditions](./official/api#conditions) setting automatically includes the `browser` condition. This changes how the `exports` field in `package.json` files is interpreted to prefer browser-specific code.
+- The [conditions](./api#conditions) setting automatically includes the `browser` condition. This changes how the `exports` field in `package.json` files is interpreted to prefer browser-specific code.
 
-- If no custom [conditions](./official/api#conditions) are configured, the Webpack-specific `module` condition is also included. The `module` condition is used by package authors to provide a tree-shakable ESM alternative to a CommonJS file without creating a [dual package hazard](https://nodejs.org/api/packages.html#dual-package-hazard). You can prevent the `module` condition from being included by explicitly configuring some custom conditions (even an empty list).
+- If no custom [conditions](./api#conditions) are configured, the Webpack-specific `module` condition is also included. The `module` condition is used by package authors to provide a tree-shakable ESM alternative to a CommonJS file without creating a [dual package hazard](https://nodejs.org/api/packages.html#dual-package-hazard). You can prevent the `module` condition from being included by explicitly configuring some custom conditions (even an empty list).
 
-- When using the [build](./official/api#build) API, all `process.env.NODE_ENV` expressions are automatically [defined](./official/api#define) to `"production"` if all [minification](./official/api#minify) options are enabled and `"development"` otherwise. This only happens if `process`, `process.env`, and `process.env.NODE_ENV` are not already defined. This substitution is necessary to avoid React-based code crashing instantly (since `process` is a node API, not a web API).
+- When using the [build](./api#build) API, all `process.env.NODE_ENV` expressions are automatically [defined](./api#define) to `"production"` if all [minification](./api#minify) options are enabled and `"development"` otherwise. This only happens if `process`, `process.env`, and `process.env.NODE_ENV` are not already defined. This substitution is necessary to avoid React-based code crashing instantly (since `process` is a node API, not a web API).
 
-- The character sequence `</script>` will be escaped in JavaScript code and the character sequence `</style>` will be escaped in CSS code. This is done in case you inline esbuild's output directly into an HTML file. This can be disabled with esbuild's [supported](./official/api#supported) feature by `setting inline-script` (for JavaScript) and/or `inline-style` (for CSS) to `false`.
+- The character sequence `</script>` will be escaped in JavaScript code and the character sequence `</style>` will be escaped in CSS code. This is done in case you inline esbuild's output directly into an HTML file. This can be disabled with esbuild's [supported](./api#supported) feature by `setting inline-script` (for JavaScript) and/or `inline-style` (for CSS) to `false`.
 
 When the platform is set to `node`:
 
-- When [bundling](./official/api#bundle) is enabled the default output [format](./official/api#format) is set to `cjs`, which stands for CommonJS (the module format used by node). ES6-style exports using `export` statements will be converted into getters on the CommonJS `exports` object.
+- When [bundling](./api#bundle) is enabled the default output [format](./api#format) is set to `cjs`, which stands for CommonJS (the module format used by node). ES6-style exports using `export` statements will be converted into getters on the CommonJS `exports` object.
 
-- All [built-in node modules](https://nodejs.org/docs/latest/api/) such as `fs` are automatically marked as [external](./official/api#external) so they don't cause errors when the bundler tries to bundle them.
+- All [built-in node modules](https://nodejs.org/docs/latest/api/) such as `fs` are automatically marked as [external](./api#external) so they don't cause errors when the bundler tries to bundle them.
 
-- The [main fields](./official/api#main-fields) setting is set to `main,module`. This means tree shaking will likely not happen for packages that provide both `module` and `main` since tree shaking works with ECMAScript modules but not with CommonJS modules.
+- The [main fields](./api#main-fields) setting is set to `main,module`. This means tree shaking will likely not happen for packages that provide both `module` and `main` since tree shaking works with ECMAScript modules but not with CommonJS modules.
 
-  Unfortunately some packages incorrectly treat `module` as meaning "browser code" instead of "ECMAScript module code" so this default behavior is required for compatibility. You can manually configure the [main fields](./official/api#main-fields) setting to `module,main` if you want to enable tree shaking and know it is safe to do so.
+  Unfortunately some packages incorrectly treat `module` as meaning "browser code" instead of "ECMAScript module code" so this default behavior is required for compatibility. You can manually configure the [main fields](./api#main-fields) setting to `module,main` if you want to enable tree shaking and know it is safe to do so.
 
-- The [conditions](./official/api#conditions) setting automatically includes the `node` condition. This changes how the `exports` field in `package.json` files is interpreted to prefer node-specific code.
+- The [conditions](./api#conditions) setting automatically includes the `node` condition. This changes how the `exports` field in `package.json` files is interpreted to prefer node-specific code.
 
-- If no custom [conditions](./official/api#conditions) are configured, the Webpack-specific `module` condition is also included. The `module` condition is used by package authors to provide a tree-shakable ESM alternative to a CommonJS file without creating a [dual package hazard](https://nodejs.org/api/packages.html#dual-package-hazard). You can prevent the `module` condition from being included by explicitly configuring some custom conditions (even an empty list).
+- If no custom [conditions](./api#conditions) are configured, the Webpack-specific `module` condition is also included. The `module` condition is used by package authors to provide a tree-shakable ESM alternative to a CommonJS file without creating a [dual package hazard](https://nodejs.org/api/packages.html#dual-package-hazard). You can prevent the `module` condition from being included by explicitly configuring some custom conditions (even an empty list).
 
-- When the [format](./official/api#format) is set to `cjs` but the entry point is ESM, esbuild will add special annotations for any named exports to enable importing those named exports using ESM syntax from the resulting CommonJS file. Node's documentation has more information about [node's detection of CommonJS named exports](https://nodejs.org/api/esm.html#commonjs-namespaces).
+- When the [format](./api#format) is set to `cjs` but the entry point is ESM, esbuild will add special annotations for any named exports to enable importing those named exports using ESM syntax from the resulting CommonJS file. Node's documentation has more information about [node's detection of CommonJS named exports](https://nodejs.org/api/esm.html#commonjs-namespaces).
 
-- The [`binary`](.official/content-types/#binary) loader will make use of node's built-in [`Buffer.from`](https://nodejs.org/api/buffer.html#static-method-bufferfromstring-encoding) API to decode the base64 data embedded in the bundle into a `Uint8Array`. This is faster than what esbuild can do otherwise since it's implemented by node in native code.
+- The [`binary`](./content-types/#binary) loader will make use of node's built-in [`Buffer.from`](https://nodejs.org/api/buffer.html#static-method-bufferfromstring-encoding) API to decode the base64 data embedded in the bundle into a `Uint8Array`. This is faster than what esbuild can do otherwise since it's implemented by node in native code.
 
 When the platform is set to `neutral`:
 
-- When [bundling](./official/api#bundle) is enabled the default output [format](./official/api#format) is set to `esm`, which uses the `export` syntax introduced with ECMAScript 2015 (i.e. ES6). You can change the output format if this default is not appropriate.
+- When [bundling](./api#bundle) is enabled the default output [format](./api#format) is set to `esm`, which uses the `export` syntax introduced with ECMAScript 2015 (i.e. ES6). You can change the output format if this default is not appropriate.
 
-- The [main fields](./official/api#main-fields) setting is empty by default. If you want to use npm-style packages, you will likely have to configure this to be something else such as main for the standard `main` field used by node.
+- The [main fields](./api#main-fields) setting is empty by default. If you want to use npm-style packages, you will likely have to configure this to be something else such as main for the standard `main` field used by node.
 
-- The [conditions](./official/api#conditions) setting does not automatically include any platform-specific values.
+- The [conditions](./api#conditions) setting does not automatically include any platform-specific values.
 
-See also [bundling for the browser](./official/getting-started/#bundling-for-the-browser) and [bundling for node](./official/getting-started/#bundling-for-node).
+See also [bundling for the browser](./getting-started/#bundling-for-the-browser) and [bundling for node](./getting-started/#bundling-for-node).
 
 ### Rebuild
 
@@ -927,11 +927,11 @@ func main() {
 
 ### Serve
 
-> Supported by: [Build](./official/api#build)
+> Supported by: [Build](./api#build)
 
 ::: info
 
-If you want your app to automatically reload as you edit, you should read about [live reloading](./official/api#live-reload). It combines serve mode with [watch mode](./official/api#watch) to listen for changes to the file system.
+If you want your app to automatically reload as you edit, you should read about [live reloading](./api#live-reload). It combines serve mode with [watch mode](./api#watch) to listen for changes to the file system.
 
 :::
 
@@ -1082,13 +1082,13 @@ For example, you might want to create an `index.html` file and then set `servedi
 
 - `keyfile` and `certfile`
 
-If you pass a private key and certificate to esbuild using `keyfile` and `certfile`, then esbuild's web server will use the `https://` protocol instead of the `http://` protocol. See [enabling HTTPS](./official/api#https) for more information.
+If you pass a private key and certificate to esbuild using `keyfile` and `certfile`, then esbuild's web server will use the `https://` protocol instead of the `http://` protocol. See [enabling HTTPS](./api#https) for more information.
 
 - `onRequest`
 
 This is called once for each incoming request with some information about the request. This callback is used by the CLI to print out a log message for each request. The time field is the time to generate the data for the request, but it does not include the time to stream the request to the client.
 
-Note that this is called after the request has completed. It's not possible to use this callback to modify the request in any way. If you want to do this, you should [put a proxy in front of esbuild](./official/api#serve-proxy) instead.
+Note that this is called after the request has completed. It's not possible to use this callback to modify the request in any way. If you want to do this, you should [put a proxy in front of esbuild](./api#serve-proxy) instead.
 
 #### Return values
 
@@ -1136,11 +1136,11 @@ To enable HTTPS with esbuild:
 openssl req -x509 -newkey rsa:4096 -keyout your.key -out your.cert -days 9999 -nodes -subj /CN=127.0.0.1
 ```
 
-2. Pass `your.key` and `your.cert` to esbuild using the `keyfile` and `certfile` [serve arguments](./official/api/#serve-arguments).
+2. Pass `your.key` and `your.cert` to esbuild using the `keyfile` and `certfile` [serve arguments](./api/#serve-arguments).
 
 3. Click past the scary warning in your browser when you load your page (self-signed certificates aren't secure, but that doesn't matter since we're just doing local development).
 
-If you have more complex needs than this, you can still [put a proxy in front of esbuild](./official/api/#serve-proxy) and use that for HTTPS instead. Note that if you see the message `Client sent an HTTP request to an HTTPS server` when you load your page, then you are using the incorrect protocol. Replace `http://` with `https://` in your browser's URL bar.
+If you have more complex needs than this, you can still [put a proxy in front of esbuild](./api/#serve-proxy) and use that for HTTPS instead. Note that if you see the message `Client sent an HTTP request to an HTTPS server` when you load your page, then you are using the incorrect protocol. Replace `http://` with `https://` in your browser's URL bar.
 
 Keep in mind that esbuild's HTTPS support has nothing to do with security. The only reason to enable HTTPS in esbuild is because browsers have made it impossible to do local development with certain modern web features without jumping through these extra hoops. *Please do not use esbuild's development server for anything that needs to be secure*. It's only intended for local development and no considerations have been made for production environments whatsoever.
 
@@ -1203,9 +1203,9 @@ You can also use a real proxy such as [nginx](https://nginx.org/en/docs/beginner
 
 ### Tsconfig
 
-> Supported by: [Build](./official/api/#build)
+> Supported by: [Build](./api/#build)
 
-Normally the [build](./official/api/#build) API automatically discovers `tsconfig.json` files and reads their contents during a build. However, you can also configure a custom `tsconfig.json` file to use instead. This can be useful if you need to do multiple builds of the same code with different settings:
+Normally the [build](./api/#build) API automatically discovers `tsconfig.json` files and reads their contents during a build. However, you can also configure a custom `tsconfig.json` file to use instead. This can be useful if you need to do multiple builds of the same code with different settings:
 
 ::: code-group
 
@@ -1248,9 +1248,9 @@ func main() {
 
 ### Tsconfig raw
 
-> Supported by: [Transform](./official/api/#transform)
+> Supported by: [Transform](./api/#transform)
 
-This option can be used to pass your `tsconfig.json` file to the [transform](./official/api/#transform) API, which doesn't access the file system. Using it looks like this:
+This option can be used to pass your `tsconfig.json` file to the [transform](./api/#transform) API, which doesn't access the file system. Using it looks like this:
 
 ::: code-group
 
@@ -1301,7 +1301,7 @@ func main() {
 
 ### Watch
 
-> Supported by: [Build](./official/api/#build)
+> Supported by: [Build](./api/#build)
 
 Enabling watch mode tells esbuild to listen for changes on the file system and to automatically rebuild whenever a file changes that could invalidate the build. Using it looks like this:
 
@@ -1419,7 +1419,7 @@ Watch mode in esbuild is implemented using polling instead of OS-specific file s
 
 With the current heuristics, large projects should be completely scanned around every 2 seconds so in the worst case it could take up to 2 seconds for a change to be noticed. However, after a change has been noticed the change's path goes on a short list of recently changed paths which are checked on every scan, so further changes to recently changed files should be noticed almost instantly.
 
-Note that it is still possible to implement watch mode yourself using esbuild's [rebuild](./official/api#rebuild) API and a file watcher library of your choice if you don't want to use a polling-based approach.
+Note that it is still possible to implement watch mode yourself using esbuild's [rebuild](./api#rebuild) API and a file watcher library of your choice if you don't want to use a polling-based approach.
 
 If you are using the CLI, keep in mind that watch mode will be terminated when esbuild's stdin is closed. This prevents esbuild from accidentally outliving the parent process and unexpectedly continuing to consume resources on the system. If you have a use case that requires esbuild to continue to watch forever even when the parent process has finished, you may use `--watch=forever` instead of `--watch`.
 
@@ -1427,11 +1427,11 @@ If you are using the CLI, keep in mind that watch mode will be terminated when e
 
 ### Entry points
 
-> Supported by: [Build](.official/api/#build)
+> Supported by: [Build](./api/#build)
 
 This is an array of files that each serve as an input to the bundling algorithm. They are called "entry points" because each one is meant to be the initial script that is evaluated which then loads all other aspects of the code that it represents. Instead of loading many libraries in your page with `<script>` tags, you would instead use `import` statements to import them into your entry point (or into another file that is then imported into your entry point).
 
-Simple apps only need one entry point but additional entry points can be useful if there are multiple logically-independent groups of code such as a main thread and a worker thread, or an app with separate relatively unrelated areas such as a landing page, an editor page, and a settings page. Separate entry points helps introduce separation of concerns and helps reduce the amount of unnecessary code that the browser needs to download. If applicable, enabling [code splitting](.official/api/#splitting) can further reduce download sizes when browsing to a second page whose entry point shares some already-downloaded code with a first page that has already been visited.
+Simple apps only need one entry point but additional entry points can be useful if there are multiple logically-independent groups of code such as a main thread and a worker thread, or an app with separate relatively unrelated areas such as a landing page, an editor page, and a settings page. Separate entry points helps introduce separation of concerns and helps reduce the amount of unnecessary code that the browser needs to download. If applicable, enabling [code splitting](./api/#splitting) can further reduce download sizes when browsing to a second page whose entry point shares some already-downloaded code with a first page that has already been visited.
 
 The simple way to specify entry points is to just pass an array of file paths:
 
@@ -1478,11 +1478,11 @@ This will generate two output files, `out/home.js` and `out/settings.js` corresp
 
 For further control over how the paths of the output files are derived from the corresponding input entry points, you should look into these options:
 
-- [Entry names](.official/api/#entry-names)
-- [Out extension](.official/api/#out-extension)
-- [Outbase](.official/api/#outbase)
-- [Outdir](.official/api/#outdir)
-- [Outfile](.official/api/#outfile)
+- [Entry names](./api/#entry-names)
+- [Out extension](./api/#out-extension)
+- [Outbase](./api/#outbase)
+- [Outdir](./api/#outdir)
+- [Outfile](./api/#outfile)
 
 In addition, you can also specify a fully custom output path for each individual entry point using an alternative entry point syntax:
 
@@ -1539,11 +1539,11 @@ This will generate two output files, `out/out1.js` and `out/out2.js` correspondi
 
 ### Loader
 
-> Supported by: [Build](./official/api#build) and [Transform](./official/api#transform)
+> Supported by: [Build](./api#build) and [Transform](./api#transform)
 
-This option changes how a given input file is interpreted. For example, the `js` loader interprets the file as JavaScript and the [`css`](./official/content-types/#css) loader interprets the file as CSS. See the [content types](./official/content-types/) page for a complete list of all built-in loaders.
+This option changes how a given input file is interpreted. For example, the `js` loader interprets the file as JavaScript and the [`css`](./content-types/#css) loader interprets the file as CSS. See the [content types](./content-types/) page for a complete list of all built-in loaders.
 
-Configuring a loader for a given file type lets you load that file type with an `import` statement or a `require` call. For example, configuring the `.png` file extension to use the [data URL](./official/content-types/#data-url) loader means importing a `.png` file gives you a data URL containing the contents of that image:
+Configuring a loader for a given file type lets you load that file type with an `import` statement or a `require` call. For example, configuring the `.png` file extension to use the [data URL](./content-types/#data-url) loader means importing a `.png` file gives you a data URL containing the contents of that image:
 
 ```js
 import url from './example.png'
@@ -1557,7 +1557,7 @@ let node = document.importNode(doc.documentElement, true)
 document.body.appendChild(node)
 ```
 
-The above code can be bundled using the [build](./official/api#build) API call like this:
+The above code can be bundled using the [build](./api#build) API call like this:
 
 ::: code-group
 
@@ -1604,7 +1604,7 @@ func main() {
 
 :::
 
-This option is specified differently if you are using the build API with input from [stdin]((./official/api#stdin), since stdin does not have a file extension. Configuring a loader for stdin with the build API looks like this:
+This option is specified differently if you are using the build API with input from [stdin]((./api#stdin), since stdin does not have a file extension. Configuring a loader for stdin with the build API looks like this:
 
 ::: code-group
 
@@ -1649,7 +1649,7 @@ func main() {
 
 :::
 
-The [transform](./official/api#transform) API call just takes a single loader since it doesn't involve interacting with the file system, and therefore doesn't deal with file extensions. Configuring a loader (in this case the [`ts`](./official/content-types/#typescript) loader) for the transform API looks like this:
+The [transform](./api#transform) API call just takes a single loader since it doesn't involve interacting with the file system, and therefore doesn't deal with file extensions. Configuring a loader (in this case the [`ts`](./content-types/#typescript) loader) for the transform API looks like this:
 
 ::: code-group
 
@@ -1689,11 +1689,11 @@ func main() {
 
 ### Stdin
 
-> Supported by: [Build](./official/api#build)
+> Supported by: [Build](./api#build)
 
 Normally the build API call takes one or more file names as input. However, this option can be used to run a build without a module existing on the file system at all. It's called "stdin" because it corresponds to piping a file to stdin on the command line.
 
-In addition to specifying the contents of the stdin file, you can optionally also specify the resolve directory (used to determine where relative imports are located), the [sourcefile](./official/api#sourcefile) (the file name to use in error messages and source maps), and the [loader](./official/api#loader) (which determines how the file contents are interpreted). The CLI doesn't have a way to specify the resolve directory. Instead, it's automatically set to the current working directory.
+In addition to specifying the contents of the stdin file, you can optionally also specify the resolve directory (used to determine where relative imports are located), the [sourcefile](./api#sourcefile) (the file name to use in error messages and source maps), and the [loader](./api#loader) (which determines how the file contents are interpreted). The CLI doesn't have a way to specify the resolve directory. Instead, it's automatically set to the current working directory.
 
 Here's how to use this feature:
 
@@ -1752,7 +1752,7 @@ func main() {
 
 ### Banner
 
-> Supported by: [Build](.official/api/#build) and [Transform](.official/api/#transform)
+> Supported by: [Build](./api/#build) and [Transform](./api/#transform)
 
 Use this to insert an arbitrary string at the beginning of generated JavaScript and CSS files. This is commonly used to insert comments:
 
@@ -1798,13 +1798,13 @@ func main() {
 
 :::
 
-This is similar to [footer](.official/api/#footer) which inserts at the end instead of the beginning.
+This is similar to [footer](./api/#footer) which inserts at the end instead of the beginning.
 
 Note that if you are inserting non-comment code into a CSS file, be aware that CSS ignores all `@import` rules that come after a non-`@import` rule (other than a `@charset` rule), so using a banner to inject CSS rules may accidentally disable imports of external stylesheets.
 
 ### Charset
 
-> Supported by: [Build](.official/api/#build) and [Transform](.official/api/#transform)
+> Supported by: [Build](./api/#build) and [Transform](./api/#transform)
 
 By default esbuild's output is ASCII-only. Any non-ASCII characters are escaped using backslash escape sequences. One reason is because non-ASCII characters are misinterpreted by the browser by default, which causes confusion. You have to explicitly add `<meta charset="utf-8">` to your HTML or serve it with the correct `Content-Type` header for the browser to not mangle your code. Another reason is that non-ASCII characters can significantly [slow down the browser's parser](https://v8.dev/blog/scanner). However, using escape sequences makes the generated output slightly bigger, and also makes it harder to read.
 
@@ -1871,7 +1871,7 @@ Some caveats:
 
 ### Footer
 
-> Supported by: [Build](.official/api/#build) and [Transform](.official/api/#transform)
+> Supported by: [Build](./api/#build) and [Transform](./api/#transform)
 
 Use this to insert an arbitrary string at the end of generated JavaScript and CSS files. This is commonly used to insert comments:
 
@@ -1917,18 +1917,18 @@ func main() {
 
 :::
 
-This is similar to [banner](.official/api/#banner) which inserts at the beginning instead of the end.
+This is similar to [banner](./api/#banner) which inserts at the beginning instead of the end.
 
 ### Format
 
-> Supported by: [Build](.official/api/#build) and [Transform](.official/api/#transform)
+> Supported by: [Build](./api/#build) and [Transform](./api/#transform)
 
 
-This sets the output format for the generated JavaScript files. There are currently three possible values that can be configured: `iife`, `cjs`, and `esm`. When no output format is specified, esbuild picks an output format for you if [bundling](.official/api/#bundle) is enabled (as described below), or doesn't do any format conversion if [bundling](.official/api/#bundle) is disabled.
+This sets the output format for the generated JavaScript files. There are currently three possible values that can be configured: `iife`, `cjs`, and `esm`. When no output format is specified, esbuild picks an output format for you if [bundling](./api/#bundle) is enabled (as described below), or doesn't do any format conversion if [bundling](./api/#bundle) is disabled.
 
 #### IIFE
 
-The iife format stands for "immediately-invoked function expression" and is intended to be run in the browser. Wrapping your code in a function expression ensures that any variables in your code don't accidentally conflict with variables in the global scope. If your entry point has exports that you want to expose as a global in the browser, you can configure that global's name using the [global name](.official/api/#global-name) setting. The `iife` format will automatically be enabled when no output format is specified, [bundling](.official/api/#bundle) is enabled, and [platform](.official/api/#platform) is set to `browser` (which it is by default). Specifying the `iife` format looks like this:
+The iife format stands for "immediately-invoked function expression" and is intended to be run in the browser. Wrapping your code in a function expression ensures that any variables in your code don't accidentally conflict with variables in the global scope. If your entry point has exports that you want to expose as a global in the browser, you can configure that global's name using the [global name](./api/#global-name) setting. The `iife` format will automatically be enabled when no output format is specified, [bundling](./api/#bundle) is enabled, and [platform](./api/#platform) is set to `browser` (which it is by default). Specifying the `iife` format looks like this:
 
 ::: code-group
 
@@ -1972,7 +1972,7 @@ func main() {
 
 #### CommonJS
 
-The `cjs` format stands for "CommonJS" and is intended to be run in node. It assumes the environment contains `exports`, `require`, and `module`. Entry points with exports in ECMAScript module syntax will be converted to a module with a getter on `exports` for each export name. The `cjs` format will automatically be enabled when no output format is specified, [bundling](.official/api/#bundle) is enabled, and [platform](.official/api/#platform) is set to `node`. Specifying the `cjs` format looks like this:
+The `cjs` format stands for "CommonJS" and is intended to be run in node. It assumes the environment contains `exports`, `require`, and `module`. Entry points with exports in ECMAScript module syntax will be converted to a module with a getter on `exports` for each export name. The `cjs` format will automatically be enabled when no output format is specified, [bundling](./api/#bundle) is enabled, and [platform](./api/#platform) is set to `node`. Specifying the `cjs` format looks like this:
 
 ::: code-group
 
@@ -2020,7 +2020,7 @@ func main() {
 
 #### ESM
 
-The `esm` format stands for "ECMAScript module". It assumes the environment supports `import` and `export` syntax. Entry points with exports in CommonJS module syntax will be converted to a single `default` export of the value of `module.exports`. The `esm` format will automatically be enabled when no output format is specified, [bundling](.official/api/#bundle) is enabled, and [platform](.official/api/#platform) is set to `neutral`. Specifying the `esm` format looks like this:
+The `esm` format stands for "ECMAScript module". It assumes the environment supports `import` and `export` syntax. Entry points with exports in CommonJS module syntax will be converted to a single `default` export of the value of `module.exports`. The `esm` format will automatically be enabled when no output format is specified, [bundling](./api/#bundle) is enabled, and [platform](./api/#platform) is set to `neutral`. Specifying the `esm` format looks like this:
 
 ::: code-group
 
@@ -2070,13 +2070,13 @@ The `esm` format can be used either in the browser or in node, but you have to e
 
 In the browser, you can load a module using `<script src="file.js" type="module"></script>`.
  
-In node, you can load a module using `node --experimental-modules file.mjs`. Note that node requires the .mjs extension unless you have configured `"type": "module"` in your `package.json` file. You can use the [out extension](.official/api/#out-extension) setting in esbuild to customize the output extension for the files esbuild generates. You can read more about using ECMAScript modules in node [here](https://nodejs.org/api/esm.html).
+In node, you can load a module using `node --experimental-modules file.mjs`. Note that node requires the .mjs extension unless you have configured `"type": "module"` in your `package.json` file. You can use the [out extension](./api/#out-extension) setting in esbuild to customize the output extension for the files esbuild generates. You can read more about using ECMAScript modules in node [here](https://nodejs.org/api/esm.html).
 
 ### Global name
 
-> Supported by: [Build](.official/api/#build) and [Transform](.official/api/#transform)
+> Supported by: [Build](./api/#build) and [Transform](./api/#transform)
 
-This option only matters when the [format](.official/api/#format) setting is `iife` (which stands for immediately-invoked function expression). It sets the name of the global variable which is used to store the exports from the entry point:
+This option only matters when the [format](./api/#format) setting is `iife` (which stands for immediately-invoked function expression). It sets the name of the global variable which is used to store the exports from the entry point:
 
 ::: code-group
 
@@ -2187,7 +2187,7 @@ example.versions["1.0"] = (() => {
 
 ### Legal comments
 
-> Supported by: [Build](.official/api/#build) and [Transform](.official/api/#transform)
+> Supported by: [Build](./api/#build) and [Transform](./api/#transform)
 
 A "legal comment" is considered to be any statement-level comment in JS or rule-level comment in CSS that contains `@license` or `@preserve` or that starts with `//!` or `/*!`. These comments are preserved in output files by default since that follows the intent of the original authors of the code. However, this behavior can be configured by using one of the following options:
 
@@ -2211,7 +2211,7 @@ A "legal comment" is considered to be any statement-level comment in JS or rule-
 
   Move all legal comments to a `.LEGAL.txt` file but to not link to them.
 
-The default behavior is `eof` when [bundling](.official/api/#bundle) is enabled and `inline` otherwise. Setting the legal comment mode looks like this:
+The default behavior is `eof` when [bundling](./api/#bundle) is enabled and `inline` otherwise. Setting the legal comment mode looks like this:
 
 ::: code-group
 
@@ -2252,10 +2252,10 @@ Note that "statement-level" for JS and "rule-level" for CSS means the comment mu
 
 ### Splitting
 
-> Supported by: [Build](.official/api/#build)
+> Supported by: [Build](./api/#build)
 
 ::: info
-Code splitting is still a work in progress. It currently only works with the `esm` output [format](.official/api/#format). There is also a known [ordering issue](https://github.com/evanw/esbuild/issues/399) with `import` statements across code splitting chunks. You can follow [the tracking issue](https://github.com/evanw/esbuild/issues/16) for updates about this feature.
+Code splitting is still a work in progress. It currently only works with the `esm` output [format](./api/#format). There is also a known [ordering issue](https://github.com/evanw/esbuild/issues/399) with `import` statements across code splitting chunks. You can follow [the tracking issue](https://github.com/evanw/esbuild/issues/16) for updates about this feature.
 :::
 
 This enables "code splitting" which serves two purposes:
@@ -2266,7 +2266,7 @@ This enables "code splitting" which serves two purposes:
 
   Without code splitting enabled, an `import()` expression becomes `Promise.resolve().then(() => require())` instead. This still preserves the asynchronous semantics of the expression but it means the imported code is included in the same bundle instead of being split off into a separate file.
 
-When you enable code splitting you must also configure the output directory using the [outdir](.official/api/#outdir) setting:
+When you enable code splitting you must also configure the output directory using the [outdir](./api/#outdir) setting:
 
 ::: code-group
 
@@ -2314,7 +2314,7 @@ func main() {
 
 ### Allow overwrite
 
-> Supported by: [Build](.official/api/#build)
+> Supported by: [Build](./api/#build)
 
 Enabling this setting allows output files to overwrite input files. It's not enabled by default because doing so means overwriting your source code, which can lead to data loss if your code is not checked in. But supporting this makes certain workflows easier by avoiding the need for a temporary directory. So you can enable this when you want to deliberately overwrite your source code:
 
@@ -2357,7 +2357,7 @@ func main() {
 
 ### Asset names
 
-> Supported by: [Build](.official/api/#build)
+> Supported by: [Build](./api/#build)
 
 This option controls the file names of the additional output files generated when the [loader](./api/#loader) is set to [`file`](./content-types/#external-file). It configures the output paths using a template with placeholders that will be substituted with values specific to the file when the output path is generated. For example, specifying an asset name template of `assets/[name]-[hash]` puts all assets into a subdirectory called `assets` inside of the output directory and includes the content hash of the asset in the file name. Doing that looks like this:
 
@@ -2428,7 +2428,7 @@ This option is similar to the [chunk names](./api/#chunk-names) and [entry names
 
 ### Chunk names
 
-> Supported by: [Build](.official/api/#build)
+> Supported by: [Build](./api/#build)
 
 This option controls the file names of the chunks of shared code that are automatically generated when [code splitting](./api/#splitting) is enabled. It configures the output paths using a template with placeholders that will be substituted with values specific to the chunk when the output path is generated. For example, specifying a chunk name template of `chunks/[name]-[hash]` puts all generated chunks into a subdirectory called chunks inside of the output directory and includes the content hash of the chunk in the file name. Doing that looks like this:
 
@@ -2497,7 +2497,7 @@ This option is similar to the [asset names](./api/#asset-names) and [entry names
 
 ### Entry names
 
-> Supported by: [Build](.official/api/#build)
+> Supported by: [Build](./api/#build)
 
 This option controls the file names of the output files corresponding to each input entry point file. It configures the output paths using a template with placeholders that will be substituted with values specific to the file when the output path is generated. For example, specifying an entry name template of `[dir]/[name]-[hash]` includes a hash of the output file in the file name and puts the files into the output directory, potentially under a subdirectory (see the details about `[dir]` below). Doing that looks like this:
 
@@ -2570,7 +2570,7 @@ This option is similar to the [asset names](./api/#asset-names) and [entry names
 
 ### Out extension
 
-> Supported by: [Build](.official/api/#build)
+> Supported by: [Build](./api/#build)
 
 This option lets you customize the file extension of the files that esbuild generates to something other than `.js` or `.css`. In particular, the `.mjs` and `.cjs` file extensions have special meaning in node (they indicate a file in ESM and CommonJS format, respectively). This option is useful if you are using esbuild to generate multiple files and you have to use the [outdir](./api/#outdir) option instead of the [outfile](./api/#outfile) option. You can use it like this:
 
@@ -2618,7 +2618,7 @@ func main() {
 
 ### Outbase
 
-> Supported by: [Build](.official/api/#build)
+> Supported by: [Build](./api/#build)
 
 If your build contains multiple entry points in separate directories, the directory structure will be replicated into the [output directory](./api/#outdir) relative to the outbase directory. For example, if there are two entry points `src/pages/home/index.ts` and `src/pages/about/index.ts` and the outbase directory is `src`, the output directory will contain `pages/home/index.js` and `pages/about/index.js`. Here's how to use it:
 
@@ -2671,7 +2671,7 @@ If the outbase directory isn't specified, it defaults to the [lowest common ance
 
 ### Outdir
 
-> Supported by: [Build](.official/api/#build)
+> Supported by: [Build](./api/#build)
 
 This option sets the output directory for the build operation. For example, this command will generate a directory called `out`:
 
@@ -2718,7 +2718,7 @@ If your build contains multiple entry points in separate directories, the direct
 
 ### Outfile
 
-> Supported by: [Build](.official/api/#build)
+> Supported by: [Build](./api/#build)
 
 This option sets the output file name for the build operation. This is only applicable if there is a single entry point. If there are multiple entry points, you must use the [outdir](./api/#outdir) option instead to specify an output directory. Using outfile looks like this:
 
@@ -2761,7 +2761,7 @@ func main() {
 
 ### Public path
 
-> Supported by: [Build](.official/api/#build)
+> Supported by: [Build](./api/#build)
 
 This is useful in combination with the [external file](./content-types/#external-file) loader. By default that loader exports the name of the imported file as a string using the `default` export. The public path option lets you prepend a base path to the exported string of each file loaded by this loader:
 
@@ -2811,7 +2811,7 @@ func main() {
 
 ### Write
 
-> Supported by: [Build](.official/api/#build)
+> Supported by: [Build](./api/#build)
 
 The build API call can either write to the file system directly or return the files that would have been written as in-memory buffers. By default the CLI and JavaScript APIs write to the file system and the Go API doesn't. To use the in-memory buffers:
 
@@ -2863,7 +2863,7 @@ func main() {
 
 ### Alias
 
-> Supported by: [Build](.official/api/#build)
+> Supported by: [Build](./api/#build)
 
 This feature lets you substitute one package for another when bundling. The example below substitutes the package `oldpkg` with the package `newpkg`:
 
@@ -2916,7 +2916,7 @@ Note that when an import path is substituted using an alias, the resulting impor
 
 ### Conditions
 
-> Supported by: [Build](.official/api/#build)
+> Supported by: [Build](./api/#build)
 
 This feature controls how the `exports` field in `package.json` is interpreted. Custom conditions can be added using the conditions setting. You can specify as many of these as you want and the meaning of these is entirely up to package authors. Node has currently only endorsed the `development` and `production` custom conditions for recommended use. Here is an example of adding the custom conditions `custom1` and `custom2`:
 
@@ -3020,7 +3020,7 @@ Another way of avoiding a dual package hazard is to use the bundler-specific `mo
 
 ### External
 
-> Supported by: [Build](.official/api/#build)
+> Supported by: [Build](./api/#build)
 
 You can mark a file or a package as external to exclude it from your build. Instead of being bundled, the import will be preserved (using `require` for the `iife` and `cjs` formats and using `import` for the `esm` format) and will be evaluated at run time instead.
 
@@ -3132,7 +3132,7 @@ External paths are applied both before and after path resolution, which lets you
 
 ### Main fields
 
-> Supported by: [Build](.official/api/#build)
+> Supported by: [Build](./api/#build)
 
 When you import a package in node, the `main` field in that package's `package.json` file determines which file is imported (along with [a lot of other rules](https://nodejs.org/api/modules.html#all-together)). Major JavaScript bundlers including esbuild let you specify additional `package.json` fields to try when resolving a package. There are at least three such fields commonly in use:
 
@@ -3212,7 +3212,7 @@ Note that using `main`, `module`, and `browser` is the old way of doing this. Th
 
 ### Node paths
 
-> Supported by: [Build](.official/api/#build)
+> Supported by: [Build](./api/#build)
 
 Node's module resolution algorithm supports an environment variable called [`NODE_PATH`](https://nodejs.org/api/modules.html#modules_loading_from_the_global_folders) that contains a list of global directories to use when resolving import paths. These paths are searched for packages in addition to the `node_modules` directories in all parent directories. You can pass this list of directories to esbuild using an environment variable with the CLI and using an array with the JS and Go APIs:
 
@@ -3260,7 +3260,7 @@ If you are using the CLI and want to pass multiple directories using `NODE_PATH`
 
 ### Packages
 
-> Supported by: [Build](.official/api/#build)
+> Supported by: [Build](./api/#build)
 
 Use this setting to exclude all of your package's dependencies from the bundle. This is useful when [bundling for node](./getting-started/#bundling-for-node) because many npm packages use node-specific features that esbuild doesn't support while bundling (such as `__dirname`, `import.meta.url`, `fs.readFileSync`, and `*.node` native binary modules). Using it looks like this:
 
@@ -3308,7 +3308,7 @@ Note that this setting only has an effect when [bundling](./api/#bundle) is enab
 
 ### Preserve symlinks
 
-> Supported by: [Build](.official/api/#build)
+> Supported by: [Build](./api/#build)
 
 This setting mirrors the [`--preserve-symlinks`](https://nodejs.org/api/cli.html#cli_preserve_symlinks) setting in node. If you use that setting (or the similar [`resolve.symlinks`](https://webpack.js.org/configuration/resolve/#resolvesymlinks) setting in Webpack), you will likely need to enable this setting in esbuild too. It can be enabled like this:
 
@@ -3357,7 +3357,7 @@ Enabling this setting causes esbuild to determine file identity by the original 
 
 ### Resolve extensions
 
-> Supported by: [Build](.official/api/#build)
+> Supported by: [Build](./api/#build)
 
 The [resolution algorithm used by node](https://nodejs.org/api/modules.html#modules_file_modules) supports implicit file extensions. You can `require('./file')` and it will check for `./file`, `./file.js`, `./file.json`, and `./file.node` in that order. Modern bundlers including esbuild extend this concept to other file types as well. The full order of implicit file extensions in esbuild can be customized using the resolve extensions setting, which defaults to `.tsx,.ts,.jsx,.js,.css,.json`:
 
@@ -3404,7 +3404,7 @@ Note that esbuild deliberately does not include the new `.mjs` and `.cjs` extens
 
 ### Working directory
 
-> Supported by: [Build](.official/api/#build)
+> Supported by: [Build](./api/#build)
 
 This API option lets you specify the working directory to use for the build. It normally defaults to the current [working directory](https://en.wikipedia.org/wiki/Working_directory) of the process you are using to call esbuild's API. The working directory is used by esbuild for a few different things including resolving relative paths given as API options to absolute paths and pretty-printing absolute paths as relative paths in log messages. Here is how to customize esbuild's working directory:
 
@@ -3446,3 +3446,577 @@ func main() {
 :::
 
 Note: If you are using [Yarn Plug'n'Play](https://yarnpkg.com/features/pnp/), keep in mind that this working directory is used to search for Yarn's manifest file. If you are running esbuild from an unrelated directory, you will have to set this working directory to the directory containing the manifest file (or one of its child directories) for the manifest file to be found by esbuild.
+
+## Transformation
+
+### JSX
+
+> Supported by: [Build](./api/#build) and [Transform](./api/#transform)
+
+This option tells esbuild what to do about JSX syntax. Here are the available options:
+
+- `transform`
+
+  This tells esbuild to transform JSX to JS using a general-purpose transform that's shared between many libraries that use JSX syntax. Each JSX element is turned into a call to the [JSX factory](./api/#jsx-factory) function with the element's component (or with the [JSX fragment](./api/#jsx-fragment) for fragments) as the first argument. The second argument is an array of props (or `null` if there are no props). Any child elements present become additional arguments after the second argument.
+
+  If you want to configure this setting on a per-file basis, you can do that by using a `// @jsxRuntime classic` comment. This is a convention from [Babel's JSX plugin](https://babeljs.io/docs/en/babel-preset-react/) that esbuild follows.
+
+- `preserve`
+
+  This preserves the JSX syntax in the output instead of transforming it into function calls. JSX elements are treated as first-class syntax and are still affected by other settings such as [minification](./api/#minify) and [property mangling](./api/#mangle-props).
+
+  Note that this means the output files are no longer valid JavaScript code. This feature is intended to be used when you want to transform the JSX syntax in esbuild's output files by another tool after bundling.
+
+- `automatic`
+
+  This transform was [introduced in React 17+](https://reactjs.org/blog/2020/09/22/introducing-the-new-jsx-transform.html) and is very specific to React. It automatically generates import statements from the [JSX import source](./api/#jsx-import-source) and introduces many special cases regarding how the syntax is handled. The details are too complicated to describe here. For more information, please read [React's documentation about their new JSX transform](https://github.com/reactjs/rfcs/blob/createlement-rfc/text/0000-create-element-changes.md). If you want to enable the development mode version of this transform, you need to additionally enable the [JSX dev](./api/#jsx-dev) setting.
+
+  If you want to configure this setting on a per-file basis, you can do that by using a `// @jsxRuntime automatic` comment. This is a convention from [Babel's JSX plugin](https://babeljs.io/docs/en/babel-preset-react/) that esbuild follows.
+
+Here's an example of setting the JSX transform to `preserve`:
+
+::: code-group
+
+```bash [CLI] $(1)
+echo '<div/>' | esbuild --jsx=preserve --loader=jsx
+<div />;
+```
+
+```js [JS]
+import * as esbuild from 'esbuild'
+
+let result = await esbuild.transform('<div/>', {
+  jsx: 'preserve',
+  loader: 'jsx',
+})
+
+console.log(result.code)
+```
+
+```go [Go]
+package main
+
+import "fmt"
+import "github.com/evanw/esbuild/pkg/api"
+
+func main() {
+  result := api.Transform("<div/>", api.TransformOptions{
+    JSX:    api.JSXPreserve,
+    Loader: api.LoaderJSX,
+  })
+
+  if len(result.Errors) == 0 {
+    fmt.Printf("%s", result.Code)
+  }
+}
+```
+
+:::
+
+### JSX dev
+
+> Supported by: [Build](./api/#build) and [Transform](./api/#transform)
+
+If the [JSX](./api/#jsx) transform has been set to `automatic`, then enabling this setting causes esbuild to automatically inject the file name and source location into each JSX element. Your JSX library can then use this information to help with debugging. If the JSX transform has been set to something other than `automatic`, then this setting does nothing. Here's an example of enabling this setting:
+
+::: code-group
+
+```bash [CLI] $(1,5)
+echo '<a/>' | esbuild --loader=jsx --jsx=automatic
+import { jsx } from "react/jsx-runtime";
+/* @__PURE__ */ jsx("a", {});
+
+echo '<a/>' | esbuild --loader=jsx --jsx=automatic --jsx-dev
+import { jsxDEV } from "react/jsx-dev-runtime";
+/* @__PURE__ */ jsxDEV("a", {}, void 0, false, {
+  fileName: "<stdin>",
+  lineNumber: 1,
+  columnNumber: 1
+}, this);
+```
+
+```js [JS]
+import * as esbuild from 'esbuild'
+
+await esbuild.build({
+  entryPoints: ['app.jsx'],
+  jsxDev: true,
+  jsx: 'automatic',
+  outfile: 'out.js',
+})
+```
+
+```go [Go]
+package main
+
+import "github.com/evanw/esbuild/pkg/api"
+import "os"
+
+func main() {
+  result := api.Build(api.BuildOptions{
+    EntryPoints: []string{"app.jsx"},
+    JSXDev:      true,
+    JSX:         api.JSXAutomatic,
+    Outfile:     "out.js",
+  })
+
+  if len(result.Errors) > 0 {
+    os.Exit(1)
+  }
+}
+```
+
+:::
+
+### JSX factory
+
+> Supported by: [Build](./api/#build) and [Transform](./api/#transform)
+
+This sets the function that is called for each JSX element. Normally a JSX expression such as this:
+
+```html
+<div>Example text</div>
+```
+
+is compiled into a function call to `React.createElement` like this:
+
+```js
+React.createElement("div", null, "Example text");
+```
+
+You can call something other than `React.createElement` by changing the JSX factory. For example, to call the function h instead (which is used by other libraries such as [Preact](https://preactjs.com/)):
+
+::: code-group
+
+```bash [CLI] $(1)
+echo '<div/>' | esbuild --jsx-factory=h --loader=jsx
+/* @__PURE__ */ h("div", null);
+```
+
+```js [JS]
+import * as esbuild from 'esbuild'
+
+let result = await esbuild.transform('<div/>', {
+  jsxFactory: 'h',
+  loader: 'jsx',
+})
+
+console.log(result.code)
+```
+
+```go [Go]
+package main
+
+import "fmt"
+import "github.com/evanw/esbuild/pkg/api"
+
+func main() {
+  result := api.Transform("<div/>", api.TransformOptions{
+    JSXFactory: "h",
+    Loader:     api.LoaderJSX,
+  })
+
+  if len(result.Errors) == 0 {
+    fmt.Printf("%s", result.Code)
+  }
+}
+```
+
+:::
+
+Alternatively, if you are using TypeScript, you can just configure JSX for TypeScript by adding this to your `tsconfig.json` file and esbuild should pick it up automatically without needing to be configured:
+
+```json
+{
+  "compilerOptions": {
+    "jsxFactory": "h"
+  }
+}
+```
+
+If you want to configure this on a per-file basis, you can do that by using a `// @jsx h` comment. Note that this setting does not apply when the [JSX](./api/#jsx) transform has been set to `automatic`.
+
+### JSX fragment
+
+> Supported by: [Build](./api/#build) and [Transform](./api/#transform)
+
+This sets the function that is called for each JSX fragment. Normally a JSX fragment expression such as this:
+
+```
+<>Stuff</>
+```
+
+is compiled into a use of the `React.Fragment` component like this:
+
+```js
+React.createElement(React.Fragment, null, "Stuff");
+```
+
+You can use a component other than `React.Fragment` by changing the JSX fragment. For example, to use the component `Fragment` instead (which is used by other libraries such as [Preact](https://preactjs.com/)):
+
+::: code-group
+
+```bash [CLI] $(1)
+echo '<>x</>' | esbuild --jsx-fragment=Fragment --loader=jsx
+/* @__PURE__ */ React.createElement(Fragment, null, "x");
+```
+
+```js [JS]
+import * as esbuild from 'esbuild'
+
+let result = await esbuild.transform('<>x</>', {
+  jsxFragment: 'Fragment',
+  loader: 'jsx',
+})
+
+console.log(result.code)
+```
+
+```go [Go]
+package main
+
+import "fmt"
+import "github.com/evanw/esbuild/pkg/api"
+
+func main() {
+  result := api.Transform("<>x</>", api.TransformOptions{
+    JSXFragment: "Fragment",
+    Loader:      api.LoaderJSX,
+  })
+
+  if len(result.Errors) == 0 {
+    fmt.Printf("%s", result.Code)
+  }
+}
+```
+
+:::
+
+Alternatively, if you are using TypeScript, you can just configure JSX for TypeScript by adding this to your `tsconfig.json` file and esbuild should pick it up automatically without needing to be configured:
+
+```json
+{
+  "compilerOptions": {
+    "jsxFragmentFactory": "Fragment"
+  }
+}
+```
+
+f you want to configure this on a per-file basis, you can do that by using a `// @jsxFrag Fragment` comment. Note that this setting does not apply when the [JSX](./api/#jsx) transform has been set to `automatic`.
+
+### JSX import source
+
+> Supported by: [Build](./api/#build) and [Transform](./api/#transform)
+
+If the [JSX](./api/#jsx) transform has been set to `automatic`, then setting this lets you change which library esbuild uses to automatically import its JSX helper functions from. Note that this only works with the JSX transform that's [specific to React 17+](https://reactjs.org/blog/2020/09/22/introducing-the-new-jsx-transform.html). If you set the JSX import source to your-pkg, then that package must expose at least the following exports:
+
+```js
+import { createElement } from "your-pkg"
+import { Fragment, jsx, jsxs } from "your-pkg/jsx-runtime"
+import { Fragment, jsxDEV } from "your-pkg/jsx-dev-runtime"
+```
+
+The `/jsx-runtime` and `/jsx-dev-runtime` subpaths are hard-coded by design and cannot be changed. The `jsx` and `jsxs` imports are used when [JSX dev mode](./api/#jsx-dev) is off and the `jsxDEV` import is used when JSX dev mode is on. The meaning of these is described in [React's documentation about their new JSX transform](https://github.com/reactjs/rfcs/blob/createlement-rfc/text/0000-create-element-changes.md). The `createElement` import is used regardless of the JSX dev mode when an element has a prop spread followed by a `key` prop, which looks like this:
+
+```
+return <div {...props} key={key} />
+```
+
+Here's an example of setting the JSX import source to [preact](https://preactjs.com/):
+
+::: code-group
+
+```bash [CLI]
+esbuild app.jsx --jsx-import-source=preact --jsx=automatic
+```
+
+```js [JS]
+import * as esbuild from 'esbuild'
+
+await esbuild.build({
+  entryPoints: ['app.jsx'],
+  jsxImportSource: 'preact',
+  jsx: 'automatic',
+  outfile: 'out.js',
+})
+```
+
+```go [Go]
+package main
+
+import "github.com/evanw/esbuild/pkg/api"
+import "os"
+
+func main() {
+  result := api.Build(api.BuildOptions{
+    EntryPoints:     []string{"app.jsx"},
+    JSXImportSource: "preact",
+    JSX:             api.JSXAutomatic,
+    Outfile:         "out.js",
+  })
+
+  if len(result.Errors) > 0 {
+    os.Exit(1)
+  }
+}
+```
+
+:::
+
+Alternatively, if you are using TypeScript, you can just configure the JSX import source for TypeScript by adding this to your `tsconfig.json` file and esbuild should pick it up automatically without needing to be configured:
+
+```json
+{
+  "compilerOptions": {
+    "jsx": "react-jsx",
+    "jsxImportSource": "preact"
+  }
+}
+```
+
+And if you want to control this setting on the per-file basis, you can do that with a `// @jsxImportSource your-pkg` comment in each file. You may also need to add a `// @jsxRuntime automatic` comment as well if the [JSX](./api/#jsx) transform has not already been set by other means, or if you want that to be set on a per-file basis as well.
+
+### JSX side effects
+
+> Supported by: [Build](./api/#build) and [Transform](./api/#transform)
+
+By default esbuild assumes that JSX expressions are side-effect free, which means they are annoated with [`/* @__PURE__ */` comments](./api/#pure) and are removed during bundling when they are unused. This follows the common use of JSX for virtual DOM and applies to the vast majority of JSX libraries. However, some people have written JSX libraries that don't have this property (specifically JSX expressions can have arbitrary side effects and can't be removed when unused). If you are using such a library, you can use this setting to tell esbuild that JSX expressions have side effects:
+
+::: code-group
+
+```bash [CLI]
+esbuild app.jsx --jsx-side-effects
+```
+
+```js [JS]
+import * as esbuild from 'esbuild'
+
+await esbuild.build({
+  entryPoints: ['app.jsx'],
+  outfile: 'out.js',
+  jsxSideEffects: true,
+})
+```
+
+```go [Go]
+package main
+
+import "github.com/evanw/esbuild/pkg/api"
+import "os"
+
+func main() {
+  result := api.Build(api.BuildOptions{
+    EntryPoints:    []string{"app.jsx"},
+    Outfile:        "out.js",
+    JSXSideEffects: true,
+  })
+
+  if len(result.Errors) > 0 {
+    os.Exit(1)
+  }
+}
+```
+
+:::
+
+### Supported
+
+> Supported by: [Build](./api/#build) and [Transform](./api/#transform)
+
+This setting lets you customize esbuild's set of unsupported syntax features at the individual syntax feature level. For example, you can use this to tell esbuild that [BigInts](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/BigInt) are not supported so that esbuild generates an error when you try to use one. Usually this is configured for you when you use the `target` setting, which you should typically be using instead of this setting. If the target is specified in addition to this setting, this setting will override whatever is specified by the target.
+
+Here are some examples of why you might want to use this setting instead of or in addition to setting the target:
+
+- JavaScript runtimes often do a quick implementation of newer syntax features that is slower than the equivalent older JavaScript, and you can get a speedup by telling esbuild to pretend this syntax feature isn't supported. For example, [V8](https://v8.dev/) has a [long-standing performance bug regarding object spread](https://bugs.chromium.org/p/v8/issues/detail?id=11536) that can be avoided by manually copying properties instead of using object spread syntax.
+
+- There are many other JavaScript implementations in addition to the ones that esbuild's `target` setting recognizes, and they may not support certain features. If you are targeting such an implementation, you can use this setting to configure esbuild with a custom syntax feature compatibility set without needing to change esbuild itself. For example, [TypeScript's](https://www.typescriptlang.org/) JavaScript parser may not support [arbitrary module namespace identifier names](https://github.com/microsoft/TypeScript/issues/40594) so you may want to turn those off when targeting TypeScript's JavaScript parser.
+
+- You may be processing esbuild's output with another tool, and you may want esbuild to transform certain features and the other tool to transform certain other features. For example, if you are using esbuild to transform files individually to ES5 but you are then feeding the output into [Webpack](https://webpack.js.org/) for bundling, you may want to preserve `import()` expressions even though they are a syntax error in ES5.
+
+If you want esbuild to consider a certain syntax feature to be unsupported, you can specify that like this:
+
+::: code-group
+
+```bash [CLI]
+esbuild app.js --supported:bigint=false
+```
+
+```js [JS]
+import * as esbuild from 'esbuild'
+
+await esbuild.build({
+  entryPoints: ['app.js'],
+  supported: {
+    'bigint': false,
+  },
+})
+```
+
+```go [Go]
+package main
+
+import "github.com/evanw/esbuild/pkg/api"
+import "os"
+
+func main() {
+  result := api.Build(api.BuildOptions{
+    EntryPoints: []string{"app.js"},
+    Supported: map[string]bool{
+      "bigint": false,
+    },
+  })
+
+  if len(result.Errors) > 0 {
+    os.Exit(1)
+  }
+}
+```
+
+:::
+
+Syntax features are specified using esbuild-specific feature names. The full set of feature names is as follows:
+
+**JavaScript:**
+
+- `arbitrary-module-namespace-names`
+- `array-spread`
+- `arrow`
+- `async-await`
+- `async-generator`
+- `bigint`
+- `class-field`
+- `class-private-accessor`
+- `class-private-brand-check`
+- `class-private-field`
+- `class-private-method`
+- `class-private-static-accessor`
+- `class-private-static-field`
+- `class-private-static-method`
+- `class-static-blocks`
+- `class-static-field`
+- `class`
+- `const-and-let`
+- `default-argument`
+- `destructuring`
+- `dynamic-import`
+- `exponent-operator`
+- `export-star-as`
+- `for-await`
+- `for-of`
+- `generator`
+- `hashbang`
+- `import-assertions`
+- `import-meta`
+- `inline-script`
+- `logical-assignment`
+- `nested-rest-binding`
+- `new-target`
+- `node-colon-prefix-import`
+- `node-colon-prefix-require`
+- `nullish-coalescing`
+- `object-accessors`
+- `object-extensions`
+- `object-rest-spread`
+- `optional-catch-binding`
+- `optional-chain`
+- `regexp-dot-all-flag`
+- `regexp-lookbehind-assertions`
+- `regexp-match-indices`
+- `regexp-named-capture-groups`
+- `regexp-sticky-and-unicode-flags`
+- `regexp-unicode-property-escapes`
+- `rest-argument`
+- `template-literal`
+- `top-level-await`
+- `typeof-exotic-object-is-object`
+- `unicode-escapes`
+
+**CSS:**
+
+- `hex-rgba`
+- `inline-style`
+- `inset-property`
+- `modern-rgb-hsl`
+- `nesting`
+- `rebecca-purple`
+
+### Target
+
+> Supported by: [Build](./api/#build) and [Transform](./api/#transform)
+
+This sets the target environment for the generated JavaScript and/or CSS code. It tells esbuild to transform JavaScript syntax that is too new for these environments into older JavaScript syntax that will work in these environments. For example, the `??` operator was introduced in Chrome 80 so esbuild will convert it into an equivalent (but more verbose) conditional expression when targeting Chrome 79 or earlier.
+
+Note that this is only concerned with syntax features, not APIs. It does not automatically add [polyfills](https://developer.mozilla.org/en-US/docs/Glossary/Polyfill) for new APIs that are not used by these environments. You will have to explicitly import polyfills for the APIs you need (e.g. by importing `core-js`). Automatic polyfill injection is outside of esbuild's scope.
+
+Each target environment is an environment name followed by a version number. The following environment names are currently supported:
+
+- `chrome`
+- `deno`
+- `edge`
+- `firefox`
+- `hermes`
+- `ie`
+- `ios`
+- `node`
+- `opera`
+- `rhino`
+- `safari`
+
+In addition, you can also specify JavaScript language versions such as `es2020`. The default target is `esnext` which means that by default, esbuild will assume all of the latest JavaScript and CSS features are supported. Here is an example that configures multiple target environments. You don't need to specify all of them; you can just specify the subset of target environments that your project cares about. You can also be more precise about version numbers if you'd like (e.g. `node12.19.0` instead of just `node12`):
+
+::: code-group
+
+```bash [CLI]
+esbuild app.js --target=es2020,chrome58,edge16,firefox57,node12,safari11
+```
+
+```js [JS]
+import * as esbuild from 'esbuild'
+
+await esbuild.build({
+  entryPoints: ['app.js'],
+  target: [
+    'es2020',
+    'chrome58',
+    'edge16',
+    'firefox57',
+    'node12',
+    'safari11',
+  ],
+  outfile: 'out.js',
+})
+```
+
+```go [Go]
+package main
+
+import "github.com/evanw/esbuild/pkg/api"
+import "os"
+
+func main() {
+  result := api.Build(api.BuildOptions{
+    EntryPoints: []string{"app.js"},
+    Target:      api.ES2020,
+    Engines: []api.Engine{
+      {Name: api.EngineChrome, Version: "58"},
+      {Name: api.EngineEdge, Version: "16"},
+      {Name: api.EngineFirefox, Version: "57"},
+      {Name: api.EngineNode, Version: "12"},
+      {Name: api.EngineSafari, Version: "11"},
+    },
+    Write: true,
+  })
+
+  if len(result.Errors) > 0 {
+    os.Exit(1)
+  }
+}
+```
+
+:::
+
+You can refer to the [JavaScript loader](./content-types/#javascript) for the details about which syntax features were introduced with which language versions. Keep in mind that while JavaScript language versions such as `es2020` are identified by year, that is the year the specification is approved. It has nothing to do with the year all major browsers implement that specification which often happens earlier or later than that year.
+
+If you use a syntax feature that esbuild doesn't yet have support for transforming to your current language target, esbuild will generate an error where the unsupported syntax is used. This is often the case when targeting the `es5` language version, for example, since esbuild only supports transforming most newer JavaScript syntax features to `es6`.
+
+If you need to customize the set of supported syntax features at the individual feature level in addition to or instead of what `target` provides, you can do that with the [`supported`](./api/#supported) setting.
