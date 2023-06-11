@@ -4020,3 +4020,1139 @@ You can refer to the [JavaScript loader](./content-types/#javascript) for the de
 If you use a syntax feature that esbuild doesn't yet have support for transforming to your current language target, esbuild will generate an error where the unsupported syntax is used. This is often the case when targeting the `es5` language version, for example, since esbuild only supports transforming most newer JavaScript syntax features to `es6`.
 
 If you need to customize the set of supported syntax features at the individual feature level in addition to or instead of what `target` provides, you can do that with the [`supported`](./api/#supported) setting.
+
+## Optimization
+
+### Define
+
+> Supported by: [Build](./api/#build) and [Transform](./api/#transform)
+
+This feature provides a way to replace global identifiers with constant expressions. It can be a way to change the behavior some code between builds without changing the code itself:
+
+::: code-group
+
+```bash [CLI] $(1,4)
+echo 'hooks = DEBUG && require("hooks")' | esbuild --define:DEBUG=true
+hooks = require("hooks");
+
+echo 'hooks = DEBUG && require("hooks")' | esbuild --define:DEBUG=false
+hooks = false;
+```
+
+```js [JS] $(1,3,5,10>)
+import * as esbuild from 'esbuild'
+
+let js = 'hooks = DEBUG && require("hooks")'
+
+(await esbuild.transform(js, {
+  define: { DEBUG: 'true' },
+})).code
+'hooks = require("hooks");\n'
+
+(await esbuild.transform(js, {
+  define: { DEBUG: 'false' },
+})).code
+'hooks = false;\n'
+```
+
+```go [Go]
+package main
+
+import "fmt"
+import "github.com/evanw/esbuild/pkg/api"
+
+func main() {
+  js := "hooks = DEBUG && require('hooks')"
+
+  result1 := api.Transform(js, api.TransformOptions{
+    Define: map[string]string{"DEBUG": "true"},
+  })
+
+  if len(result1.Errors) == 0 {
+    fmt.Printf("%s", result1.Code)
+  }
+
+  result2 := api.Transform(js, api.TransformOptions{
+    Define: map[string]string{"DEBUG": "false"},
+  })
+
+  if len(result2.Errors) == 0 {
+    fmt.Printf("%s", result2.Code)
+  }
+}
+```
+
+:::
+
+Replacement expressions must either be a JSON object (null, boolean, number, string, array, or object) or a single identifier. Replacement expressions other than arrays and objects are substituted inline, which means that they can participate in constant folding. Array and object replacement expressions are stored in a variable and then referenced using an identifier instead of being substituted inline, which avoids substituting repeated copies of the value but means that the values don't participate in constant folding.
+
+If you want to replace something with a string literal, keep in mind that the replacement value passed to esbuild must itself contain quotes. Omitting the quotes means the replacement value is an identifier instead:
+
+::: code-group
+
+```bash [CLI] $(1)
+echo 'id, str' | esbuild --define:id=text --define:str=\"text\"
+text, "text";
+```
+
+```js [JS] $(1,3)
+import * as esbuild from 'esbuild'
+
+(await esbuild.transform('id, str', {
+  define: { id: 'text', str: '"text"' },
+})).code
+'text, "text";\n'
+```
+
+```go [Go]
+package main
+
+import "fmt"
+import "github.com/evanw/esbuild/pkg/api"
+
+func main() {
+  result := api.Transform("id, text", api.TransformOptions{
+    Define: map[string]string{
+      "id":  "text",
+      "str": "\"text\"",
+    },
+  })
+
+  if len(result.Errors) == 0 {
+    fmt.Printf("%s", result.Code)
+  }
+}
+```
+
+:::
+
+If you're using the CLI, keep in mind that different shells have different rules for how to escape double-quote characters (which are necessary when the replacement value is a string). Use a `\"` backslash escape because it works in both bash and Windows command prompt. Other methods of escaping double quotes that work in bash such as surrounding them with single quotes will not work on Windows, since Windows command prompt does not remove the single quotes. This is relevant when using the CLI from a npm script in your `package.json` file, which people will expect to work on all platforms:
+
+```json
+{
+  "scripts": {
+    "build": "esbuild --define:process.env.NODE_ENV=\\\"production\\\" app.js"
+  }
+}
+```
+
+If you still run into cross-platform quote escaping issues with different shells, you will probably want to switch to using the [JavaScript API](./api/) instead. There you can use regular JavaScript syntax to eliminate cross-platform differences.
+
+If you're looking for a more advanced form of the define feature that can replace an expression with something other than a constant (e.g. replacing a global variable with a shim), you may be able to use the similar [inject](./api/#inject) feature to do that.
+
+### Drop
+
+> Supported by: [Build](./api/#build) and [Transform](./api/#transform)
+
+This tells esbuild to edit your source code before building to drop certain constructs. There are currently two possible things that can be dropped:
+
+- `debugger`
+
+  Passing this flag causes all [`debugger` statements](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/debugger) to be removed from the output. This is similar to the `drop_debugger: true` flag available in the popular [UglifyJS](https://github.com/mishoo/UglifyJS) and [Terser](https://github.com/terser/terser) JavaScript minifiers.
+
+  JavaScript's `debugger` statements cause the active debugger to treat the statement as an automatically-configured breakpoint. Code containing this statement will automatically be paused when the debugger is open. If no debugger is open, the statement does nothing. Dropping these statements from your code just prevents the debugger from automatically stopping when your code runs.
+
+  You can drop `debugger` statements like this:
+
+::: code-group
+
+```bash [CLI]
+esbuild app.js --drop:debugger
+```
+
+```js [JS]
+import * as esbuild from 'esbuild'
+
+await esbuild.build({
+  entryPoints: ['app.js'],
+  drop: ['debugger'],
+})
+```
+
+```go [Go]
+package main
+
+import "github.com/evanw/esbuild/pkg/api"
+import "os"
+
+func main() {
+  result := api.Build(api.BuildOptions{
+    EntryPoints: []string{"app.js"},
+    Drop:        api.DropDebugger,
+  })
+
+  if len(result.Errors) > 0 {
+    os.Exit(1)
+  }
+}
+```
+
+:::
+
+- `console`
+
+  Passing this flag causes all [`console` API calls](https://developer.mozilla.org/en-US/docs/Web/API/console#methods) to be removed from the output. This is similar to the `drop_console: true` flag available in the popular [UglifyJS](https://github.com/mishoo/UglifyJS) and [Terser](https://github.com/terser/terser) JavaScript minifiers.
+
+  WARNING: Using this flag can introduce bugs into your code! This flag removes the entire call expression including all call arguments. If any of those arguments had important side effects, using this flag will change the behavior of your code. Be very careful when using this flag.
+
+  If you want to remove console API calls without removing the arguments with side effects (so you do not introduce bugs), you should mark the relevant API calls as [pure](./api/#pure) instead. For example, you can mark `console.log` as pure using `--pure:console.log`. This will cause these API calls to be removed safely when minification is enabled.
+
+  You can drop `console` API calls like this:
+
+::: code-group
+
+```bash [CLI]
+esbuild app.js --drop:console
+```
+
+```js [JS]
+import * as esbuild from 'esbuild'
+
+await esbuild.build({
+  entryPoints: ['app.js'],
+  drop: ['console'],
+})
+```
+
+```go [Go]
+package main
+
+import "github.com/evanw/esbuild/pkg/api"
+import "os"
+
+func main() {
+  result := api.Build(api.BuildOptions{
+    EntryPoints: []string{"app.js"},
+    Drop:        api.DropConsole,
+  })
+
+  if len(result.Errors) > 0 {
+    os.Exit(1)
+  }
+}
+```
+
+:::
+
+### Ignore annotations
+
+> Supported by: [Build](./api/#build) and [Transform](./api/#transform)
+
+Since JavaScript is a dynamic language, identifying unused code is sometimes very difficult for a compiler, so the community has developed certain annotations to help tell compilers what code should be considered side-effect free and available for removal. Currently there are two forms of side-effect annotations that esbuild supports:
+
+- Inline `/* @__PURE__ */` comments before function calls tell esbuild that the function call can be removed if the resulting value isn't used. See the [pure](./api/#pure) API option for more information.
+
+- The `sideEffects` field in `package.json` can be used to tell esbuild which files in your package can be removed if all imports from that file end up being unused. This is a convention from Webpack and many libraries published to npm already have this field in their package definition. You can learn more about this field in [Webpack's documentation](https://webpack.js.org/guides/tree-shaking/) for this field.
+
+These annotations can be problematic because the compiler depends completely on developers for accuracy, and developers occasionally publish packages with incorrect annotations. The `sideEffects` field is particularly error-prone for developers because by default it causes all files in your package to be considered dead code if no imports are used. If you add a new file containing side effects and forget to update that field, your package will likely break when people try to bundle it.
+
+This is why esbuild includes a way to ignore side-effect annotations. You should only enable this if you encounter a problem where the bundle is broken because necessary code was unexpectedly removed from the bundle:
+
+::: code-group
+
+```bash [CLI]
+esbuild app.js --bundle --ignore-annotations
+```
+
+```js [JS]
+import * as esbuild from 'esbuild'
+
+await esbuild.build({
+  entryPoints: ['app.js'],
+  bundle: true,
+  ignoreAnnotations: true,
+  outfile: 'out.js',
+})
+```
+
+```go [Go]
+package main
+
+import "github.com/evanw/esbuild/pkg/api"
+import "os"
+
+func main() {
+  result := api.Build(api.BuildOptions{
+    EntryPoints:       []string{"app.js"},
+    Bundle:            true,
+    IgnoreAnnotations: true,
+  })
+
+  if len(result.Errors) > 0 {
+    os.Exit(1)
+  }
+}
+```
+
+:::
+
+Enabling this means esbuild will no longer respect `/* @__PURE__ */` comments or the `sideEffects` field. It will still do automatic [tree shaking](./api/#tree-shaking) of unused imports, however, since that doesn't rely on annotations from developers. Ideally this flag is only a temporary workaround. You should report these issues to the maintainer of the package to get them fixed since they indicate a problem with the package and they will likely trip up other people too.
+
+### Inject
+
+> Supported by: [Build](./api/#build)
+
+This option allows you to automatically replace a global variable with an import from another file. This can be a useful tool for adapting code that you don't control to a new environment. For example, assume you have a file called `process-cwd-shim.js` that exports a shim using the export name `process.cwd`:
+
+```js
+// process-cwd-shim.js
+let processCwdShim = () => ''
+export { processCwdShim as 'process.cwd' }
+```
+
+```js
+// entry.js
+console.log(process.cwd())
+```
+
+This is intended to replace uses of node's `process.cwd()` function to prevent packages that call it from crashing when run in the browser. You can use the inject feature to replace all references to the global property `process.cwd` with an import from that file:
+
+::: code-group
+
+```bash [CLI]
+esbuild entry.js --inject:./process-cwd-shim.js --outfile=out.js
+```
+
+```js [JS]
+import * as esbuild from 'esbuild'
+
+await esbuild.build({
+  entryPoints: ['entry.js'],
+  inject: ['./process-cwd-shim.js'],
+  outfile: 'out.js',
+})
+```
+
+```go [Go]
+package main
+
+import "github.com/evanw/esbuild/pkg/api"
+import "os"
+
+func main() {
+  result := api.Build(api.BuildOptions{
+    EntryPoints: []string{"entry.js"},
+    Inject:      []string{"./process-cwd-shim.js"},
+    Outfile:     "out.js",
+    Write:       true,
+  })
+
+  if len(result.Errors) > 0 {
+    os.Exit(1)
+  }
+}
+```
+
+:::
+
+That results in something like this:
+
+```js
+// out.js
+var processCwdShim = () => "";
+console.log(processCwdShim());
+```
+
+You can think of the inject feature as similar to the [define](./api/#define) feature, except it replaces an expression with an import to a file instead of with a constant, and the expression to replace is specified using an export name in a file instead of using an inline string in esbuild's API.
+
+#### Auto-import for JSX
+
+React (the library for which JSX syntax was originally created) has a mode they call `automatic` where you don't have to `import` anything to use JSX syntax. Instead, the JSX-to-JS transformer will automatically import the correct JSX factory function for you. You can enable `automatic` JSX mode with esbuild's [`jsx`](./api/#jsx) setting. If you want auto-import for JSX and you are using a sufficiently new version of React, then you should be using the `automatic` JSX mode.
+
+However, setting `jsx` to `automatic` unfortunately also means you are using a highly React-specific JSX transform instead of the default general-purpose JSX transform. This means writing a JSX factory function is more complicated, and it also means that the `automatic` mode doesn't work with libraries that expect to be used with the standard JSX transform (including older versions of React).
+
+You can use esbuild's inject feature to automatically import the [factory](./api/#jsx-factory) and [fragment](./api/#jsx-fragment) for JSX expressions when the JSX transform is not set to `automatic`. Here's an example file that can be injected to do this:
+
+```js
+const { createElement, Fragment } = require('react')
+export {
+  createElement as 'React.createElement',
+  Fragment as 'React.Fragment',
+}
+```
+
+This code uses the React library as an example, but you can use this approach with any other JSX library as well with appropriate changes.
+
+#### Injecting files without imports
+
+You can also use this feature with files that have no exports. In that case the injected file just comes first before the rest of the output as if every input file contained `import "./file.js"`. Because of the way ECMAScript modules work, this injection is still "hygienic" in that symbols with the same name in different files are renamed so they don't collide with each other.
+
+#### Conditionally injecting a file
+
+If you want to conditionally import a file only if the export is actually used, you should mark the injected file as not having side effects by putting it in a package and adding `"sideEffects": false` in that package's `package.json` file. This setting is a [convention from Webpack](https://webpack.js.org/guides/tree-shaking/#mark-the-file-as-side-effect-free) that esbuild respects for any imported file, not just files used with inject.
+
+### Keep names
+
+> Supported by: [Build](./api/#build) and [Transform](./api/#transform)
+
+In JavaScript the `name` property on functions and classes defaults to a nearby identifier in the source code. These syntax forms all set the `name` property of the function to `"fn"`:
+
+```js
+function fn() {}
+let fn = function() {};
+fn = function() {};
+let [fn = function() {}] = [];
+let {fn = function() {}} = {};
+[fn = function() {}] = [];
+({fn = function() {}} = {});
+```
+
+However, [minification](./api/#minify) renames symbols to reduce code size and [bundling](./api/#bundle) sometimes need to rename symbols to avoid collisions. That changes value of the `name` property for many of these cases. This is usually fine because the `name` property is normally only used for debugging. However, some frameworks rely on the `name` property for registration and binding purposes. If this is the case, you can enable this option to preserve the original `name` values even in minified code:
+
+::: code-group
+
+```bash [CLI]
+esbuild app.js --minify --keep-names
+```
+
+```js [JS]
+import * as esbuild from 'esbuild'
+
+await esbuild.build({
+  entryPoints: ['app.js'],
+  minify: true,
+  keepNames: true,
+  outfile: 'out.js',
+})
+```
+
+```go [Go]
+package main
+
+import "github.com/evanw/esbuild/pkg/api"
+import "os"
+
+func main() {
+  result := api.Build(api.BuildOptions{
+    EntryPoints:       []string{"app.js"},
+    MinifyWhitespace:  true,
+    MinifyIdentifiers: true,
+    MinifySyntax:      true,
+    KeepNames:         true,
+  })
+
+  if len(result.Errors) > 0 {
+    os.Exit(1)
+  }
+}
+```
+
+:::
+
+### Mangle props
+
+> Supported by: [Build](./api/#build) and [Transform](./api/#transform)
+
+::: info
+Using this feature can break your code in subtle ways. Do not use this feature unless you know what you are doing, and you know exactly how it will affect both your code and all of your dependencies.
+:::
+
+This setting lets you pass a regular expression to esbuild to tell esbuild to automatically rename all properties that match this regular expression. It's useful when you want to minify certain property names in your code either to make the generated code smaller or to somewhat obfuscate your code's intent.
+
+Here's an example that uses the regular expression `_$` to mangle all properties ending in an underscore, such as `foo_`. This mangles `print({ foo_: 0 }.foo_)` into `print({ a: 0 }.a)`:
+
+::: code-group
+
+```bash [CLI]
+esbuild app.js --mangle-props=_$
+```
+
+```js [JS]
+import * as esbuild from 'esbuild'
+
+await esbuild.build({
+  entryPoints: ['app.js'],
+  mangleProps: /_$/,
+})
+```
+
+```go [Go]
+package main
+
+import "github.com/evanw/esbuild/pkg/api"
+import "os"
+
+func main() {
+  result := api.Build(api.BuildOptions{
+    EntryPoints: []string{"app.js"},
+    MangleProps: "_$",
+  })
+
+  if len(result.Errors) > 0 {
+    os.Exit(1)
+  }
+}
+```
+
+:::
+
+Only mangling properties that end in an underscore is a reasonable heuristic because normal JS code doesn't typically contain identifiers like that. Browser APIs also don't use this naming convention so this also avoids conflicts with browser APIs. If you want to avoid mangling names such as [`__defineGetter__`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/__defineGetter__) you could consider using a more complex regular expression such as `[^_]_$` (i.e. must end in a non-underscore followed by an underscore).
+
+This is a separate setting instead of being part of the [minify](./api/#minify) setting because it's an unsafe transformation that does not work on arbitrary JavaScript code. It only works if the provided regular expression matches all of the properties that you want mangled and does not match any of the properties that you don't want mangled. It also only works if you do not under any circumstances reference a mangled property indirectly. For example, it means you can't use `obj[prop]` to reference a property where `prop` is a string containing the property name. Specifically the following syntax constructs are the only ones eligible for property mangling:
+
+
+| **Syntax**  | **Example**    |
+| ------------- |  ----: |
+| Dot property accesses	| `x.foo_` | 
+| Dot optional chains |	`x?.foo_` |
+| Object properties |	`x = { foo_: y }` |
+| Object methods | `x = { foo_() {} }` |
+| Class fields |	`class x { foo_ = y }` |
+| Class methods |	`class x { foo_() {} }` |
+| Object destructuring bindings |	`let { foo_: x } = y` |
+| Object destructuring assignments |	`({ foo_: x } = y)` |
+| JSX element member expression |	`<X.foo_></X.foo_>` |
+| JSX attribute names |	`<X foo_={y} />` |
+| TypeScript namespace exports |	`namespace x { export let foo_ = y }` |
+| TypeScript parameter properties |	`class x { constructor(public foo_) {} }` |
+
+When using this feature, keep in mind that property names are only consistently mangled within a single esbuild API call but not across esbuild API calls. Each esbuild API call does an independent property mangling operation so output files generated by two different API calls may mangle the same property to two different names, which could cause the resulting code to behave incorrectly.
+
+#### Quoted properties
+
+By default, esbuild doesn't modify the contents of string literals. This means you can avoid property mangling for an individual property by quoting it as a string. However, you must consistently use quotes or no quotes for a given property everywhere for this to work. For example, `print({ foo_: 0 }.foo_)` will be mangled into `print({ a: 0 }.a)` while `print({ 'foo_': 0 }['foo_'])` will not be mangled.
+
+If you would like for esbuild to also mangle the contents of string literals, you can explicitly enable that behavior like this:
+
+::: code-group
+
+```bash [CLI]
+esbuild app.js --mangle-props=_$ --mangle-quoted
+```
+
+```js [JS]
+import * as esbuild from 'esbuild'
+
+await esbuild.build({
+  entryPoints: ['app.js'],
+  mangleProps: /_$/,
+  mangleQuoted: true,
+})
+```
+
+```go [Go]
+package main
+
+import "github.com/evanw/esbuild/pkg/api"
+import "os"
+
+func main() {
+  result := api.Build(api.BuildOptions{
+    EntryPoints:  []string{"app.js"},
+    MangleProps:  "_$",
+    MangleQuoted: api.MangleQuotedTrue,
+  })
+
+  if len(result.Errors) > 0 {
+    os.Exit(1)
+  }
+}
+```
+
+:::
+
+Enabling this makes the following syntax constructs also eligible for property mangling:
+
+| **Syntax**  | **Example**    |
+| ------------- |  ----: |
+| Quoted property accesses	| `x['foo_']` | 
+| Quoted optional chains	| `x?.['foo_']` | 
+| Quoted object properties	| `x = { 'foo_': y }` | 
+| Quoted object methods	| `x = { 'foo_'() {} }` | 
+| Quoted class fields	| `class x { 'foo_' = y }` | 
+| Quoted class methods	| `class x { 'foo_'() {} }` | 
+| Quoted object destructuring bindings	| `let { 'foo_': x } = y` | 
+| Quoted object destructuring assignments	| `({ 'foo_': x } = y)` | 
+| String literals to the left of in	| `'foo_' in x` | 
+
+#### Preventing renaming
+
+If you would like to exclude certain properties from mangling, you can reserve them with an additional setting. For example, this uses the regular expression `^__.*__$` to reserve all properties that start and end with two underscores, such as `__foo__`:
+
+::: code-group
+
+```bash [CLI]
+esbuild app.js --mangle-props=_$ "--reserve-props=^__.*__$"
+```
+
+```js [JS]
+import * as esbuild from 'esbuild'
+
+await esbuild.build({
+  entryPoints: ['app.js'],
+  mangleProps: /_$/,
+  reserveProps: /^__.*__$/,
+})
+```
+
+```go [Go]
+package main
+
+import "github.com/evanw/esbuild/pkg/api"
+import "os"
+
+func main() {
+  result := api.Build(api.BuildOptions{
+    EntryPoints:  []string{"app.js"},
+    MangleProps:  "_$",
+    ReserveProps: "^__.*__$",
+  })
+
+  if len(result.Errors) > 0 {
+    os.Exit(1)
+  }
+}
+```
+
+:::
+
+#### Persisting renaming decisions
+
+Advanced usage of the property mangling feature involves storing the mapping from original name to mangled name in a persistent cache. When enabled, all mangled property renamings are recorded in the cache during the initial build. Subsequent builds reuse the renamings stored in the cache and add additional renamings for any newly-added properties. This has a few consequences:
+
+- You can customize what mangled properties are renamed to by editing the cache before passing it to esbuild.
+
+- The cache serves as a list of all properties that were mangled. You can easily scan it to see if there are any unexpected property renamings.
+
+- You can disable mangling for individual properties by setting the renamed value to false instead of to a string. This is similar to the [reserve props](./api/#reserve-props) setting but on a per-property basis.
+
+- You can ensure consistent renaming between builds (e.g. a main-thread file and a web worker, or a library and a plugin). Without this feature, each build would do an independent renaming operation and the mangled property names likely wouldn't be consistent.
+
+For example, consider the following input file:
+
+```js
+console.log({
+  someProp_: 1,
+  customRenaming_: 2,
+  disabledRenaming_: 3
+});
+```
+
+If we want `customRenaming_` to be renamed to `cR_` and we don't want `disabledRenaming_` to be renamed at all, we can pass the following mangle cache JSON to esbuild:
+
+```json
+{
+  "customRenaming_": "cR_",
+  "disabledRenaming_": false
+}
+```
+
+The mangle cache JSON can be passed to esbuild like this:
+
+::: code-group
+
+```bash [CLI]
+esbuild app.js --mangle-props=_$ --mangle-cache=cache.json
+```
+
+```js [JS]
+import * as esbuild from 'esbuild'
+
+let result = await esbuild.build({
+  entryPoints: ['app.js'],
+  mangleProps: /_$/,
+  mangleCache: {
+    customRenaming_: "cR_",
+    disabledRenaming_: false
+  },
+})
+
+console.log('updated mangle cache:', result.mangleCache)
+```
+
+```go [Go]
+package main
+
+import "fmt"
+import "github.com/evanw/esbuild/pkg/api"
+import "os"
+
+func main() {
+  result := api.Build(api.BuildOptions{
+    EntryPoints: []string{"app.js"},
+    MangleProps: "_$",
+    MangleCache: map[string]interface{}{
+      "customRenaming_":   "cR_",
+      "disabledRenaming_": false,
+    },
+  })
+
+  if len(result.Errors) > 0 {
+    os.Exit(1)
+  }
+
+  fmt.Println("updated mangle cache:", result.MangleCache)
+}
+```
+
+:::
+
+When property naming is enabled, that will result in the following output file:
+
+```js
+console.log({
+  a: 1,
+  cR_: 2,
+  disabledRenaming_: 3
+});
+```
+
+And the following updated mangle cache:
+
+```json
+{
+  "customRenaming_": "cR_",
+  "disabledRenaming_": false,
+  "someProp_": "a"
+}
+```
+
+### Minify
+
+> Supported by: [Build](./api/#build) and [Transform](./api/#transform)
+
+When enabled, the generated code will be minified instead of pretty-printed. Minified code is generally equivalent to non-minified code but is smaller, which means it downloads faster but is harder to debug. Usually you minify code in production but not in development.
+
+Enabling minification in esbuild looks like this:
+
+::: code-group
+
+```bash [CLI] $(1)
+echo 'fn = obj => { return obj.x }' | esbuild --minify
+fn=n=>n.x;
+```
+
+```js [JS] $(1,3,5)
+import * as esbuild from 'esbuild'
+
+var js = 'fn = obj => { return obj.x }'
+
+(await esbuild.transform(js, {
+  minify: true,
+})).code
+'fn=n=>n.x;\n'
+```
+
+```go [Go]
+
+```
+
+:::
+
+This option does three separate things in combination: it removes whitespace, it rewrites your syntax to be more compact, and it renames local variables to be shorter. Usually you want to do all of these things, but these options can also be enabled individually if necessary:
+
+::: code-group
+
+```bash [CLI] $(1,4,9)
+echo 'fn = obj => { return obj.x }' | esbuild --minify-whitespace
+fn=obj=>{return obj.x};
+
+echo 'fn = obj => { return obj.x }' | esbuild --minify-identifiers
+fn = (n) => {
+  return n.x;
+};
+
+echo 'fn = obj => { return obj.x }' | esbuild --minify-syntax
+fn = (obj) => obj.x;
+```
+
+```js [JS] $(1,3,5,10,15>)
+import * as esbuild from 'esbuild'
+
+var js = 'fn = obj => { return obj.x }'
+(await esbuild.transform(js, {
+  minifyWhitespace: true,
+})).code
+'fn=obj=>{return obj.x};\n'
+
+(await esbuild.transform(js, {
+  minifyIdentifiers: true,
+})).code
+'fn = (n) => {\n  return n.x;\n};\n'
+
+(await esbuild.transform(js, {
+  minifySyntax: true,
+})).code
+'fn = (obj) => obj.x;\n'
+```
+
+```go [Go]
+package main
+
+import "fmt"
+import "github.com/evanw/esbuild/pkg/api"
+
+func main() {
+  css := "div { color: yellow }"
+
+  result1 := api.Transform(css, api.TransformOptions{
+    Loader:           api.LoaderCSS,
+    MinifyWhitespace: true,
+  })
+
+  if len(result1.Errors) == 0 {
+    fmt.Printf("%s", result1.Code)
+  }
+
+  result2 := api.Transform(css, api.TransformOptions{
+    Loader:            api.LoaderCSS,
+    MinifyIdentifiers: true,
+  })
+
+  if len(result2.Errors) == 0 {
+    fmt.Printf("%s", result2.Code)
+  }
+
+  result3 := api.Transform(css, api.TransformOptions{
+    Loader:       api.LoaderCSS,
+    MinifySyntax: true,
+  })
+
+  if len(result3.Errors) == 0 {
+    fmt.Printf("%s", result3.Code)
+  }
+}
+```
+
+:::
+
+These same concepts also apply to CSS, not just to JavaScript:
+
+::: code-group
+
+```bash [CLI] $(1)
+echo 'div { color: yellow }' | esbuild --loader=css --minify
+div{color:#ff0}
+```
+
+```js [JS] $(1,3,5>)
+import * as esbuild from 'esbuild'
+
+var css = 'div { color: yellow }'
+
+(await esbuild.transform(css, {
+  loader: 'css',
+  minify: true,
+})).code
+'div{color:#ff0}\n'
+```
+
+```go [Go]
+package main
+
+import "fmt"
+import "github.com/evanw/esbuild/pkg/api"
+
+func main() {
+  css := "div { color: yellow }"
+
+  result := api.Transform(css, api.TransformOptions{
+    Loader:            api.LoaderCSS,
+    MinifyWhitespace:  true,
+    MinifyIdentifiers: true,
+    MinifySyntax:      true,
+  })
+
+  if len(result.Errors) == 0 {
+    fmt.Printf("%s", result.Code)
+  }
+}
+```
+
+:::
+
+The JavaScript minification algorithm in esbuild usually generates output that is very close to the minified output size of industry-standard JavaScript minification tools. [This benchmark](https://github.com/privatenumber/minification-benchmarks#readme) has an example comparison of output sizes between different minifiers. While esbuild is not the optimal JavaScript minifier in all cases (and doesn't try to be), it strives to generate minified output within a few percent of the size of dedicated minification tools for most code, and of course to do so much faster than other tools.
+
+#### Considerations
+
+Here are some things to keep in mind when using esbuild as a minifier:
+
+- You should probably also set the [target](./api/#target) option when minification is enabled. By default esbuild takes advantage of modern JavaScript features to make your code smaller. For example, `a === undefined || a === null ? 1 : a` could be minified to `a ?? 1`. If you do not want esbuild to take advantage of modern JavaScript features when minifying, you should use an older language target such as `--target=es6`.
+
+- The character escape sequence \n will be replaced with a newline character in JavaScript template literals. String literals will also be converted into template literals if the [target](./api/#target) supports them and if doing so would result in smaller output. **This is not a bug**. Minification means you are asking for smaller output, and the escape sequence \n takes two bytes while the newline character takes one byte.
+
+- By default esbuild won't minify the names of top-level declarations. This is because esbuild doesn't know what you will be doing with the output. You might be injecting the minified code into the middle of some other code, in which case minifying top-level declaration names would be unsafe. Setting an output [format](./api/#format) (or enabling [bundling](./api/#bundle), which picks an output format for you if you haven't set one) tells esbuild that the output will be run within its own scope, which means it's then safe to minify top-level declaration names.
+
+- Minification is not safe for 100% of all JavaScript code. This is true for esbuild as well as for other popular JavaScript minifiers such as [terser](https://github.com/terser/terser). In particular, esbuild is not designed to preserve the value of calling `.toString()` on a function. The reason for this is because if all code inside all functions had to be preserved verbatim, minification would hardly do anything at all and would be virtually useless. However, this means that JavaScript code relying on the return value of `.toString()` will likely break when minified. For example, some patterns in the AngularJS framework break when code is minified because AngularJS uses `.toString()` to read the argument names of functions. A workaround is to use [explicit annotations instead](https://docs.angularjs.org/api/auto/service/$injector#injection-function-annotation).
+
+- By default esbuild does not preserve the value of `.name` on function and class objects. This is because most code doesn't rely on this property and using shorter names is an important size optimization. However, some code does rely on the `.name` property for registration and binding purposes. If you need to rely on this you should enable the [keep names](./api/#keep-names) option.
+
+- Use of certain JavaScript features can disable many of esbuild's optimizations including minification. Specifically, using direct `eval` and/or the `with` statement prevent esbuild from renaming identifiers to smaller names since these features cause identifier binding to happen at run time instead of compile time. This is almost always unintentional, and only happens because people are unaware of what direct `eval` is and why it's bad.
+
+If you are thinking about writing some code like this:
+
+```js
+// Direct eval (will disable minification for the whole file)
+let result = eval(something)
+```
+
+You should probably write your code like this instead so your code can be minified:
+
+```js
+// Indirect eval (has no effect on the surrounding code)
+let result = (0, eval)(something)
+```
+
+There is more information about the consequences of direct `eval` and the available alternatives [here](./content-types/#direct-eval).
+
+- The minification algorithm in esbuild does not yet do advanced code optimizations. In particular, the following code optimizations are possible for JavaScript code but are not done by esbuild (not an exhaustive list):
+
+  - Dead-code elimination within function bodies
+  - Function inlining
+  - Cross-statement constant propagation
+  - Object shape modeling
+  - Allocation sinking
+  - Method devirtualization
+  - Symbolic execution
+  - JSX expression hoisting
+  - TypeScript enum detection and inlining
+
+If your code makes use of patterns that require some of these forms of code optimization to be compact, or if you are searching for the optimal JavaScript minification algorithm for your use case, you should consider using other tools. Some examples of tools that implement some of these advanced code optimizations include [Terser](https://github.com/terser/terser#readme) and [Google Closure Compiler](https://github.com/google/closure-compiler#readme).
+
+### Pure
+
+> Supported by: [Build](./api/#build) and [Transform](./api/#transform)
+
+There is a convention used by various JavaScript tools where a special comment containing either `/* @__PURE__ */` or `/* #__PURE__ */` before a new or call expression means that that expression can be removed if the resulting value is unused. It looks like this:
+
+```js
+let button = /* @__PURE__ */ React.createElement(Button, null);
+```
+
+This information is used by bundlers such as esbuild during tree shaking (a.k.a. dead code removal) to perform fine-grained removal of unused imports across module boundaries in situations where the bundler is not able to prove by itself that the removal is safe due to the dynamic nature of JavaScript code.
+
+Note that while the comment says "pure", it confusingly does not indicate that the function being called is pure. For example, it does not indicate that it is ok to cache repeated calls to that function. The name is essentially just an abstract shorthand for "ok to be removed if unused".
+
+Some expressions such as JSX and certain built-in globals are automatically annotated as `/* @__PURE__ */` in esbuild. You can also configure additional globals to be marked `/* @__PURE__ */` as well. For example, you can mark the global `document.createElement` function as such to have it be automatically removed from your bundle when the bundle is minified as long as the result isn't used.
+
+It's worth mentioning that the effect of the annotation only extends to the call itself, not to the arguments. Arguments with side effects are still kept even when minification is enabled:
+
+::: code-group
+
+```bash [CLI] $(1,3)
+echo 'document.createElement(elemName())' | esbuild --pure:document.createElement
+/* @__PURE__ */ document.createElement(elemName());
+
+echo 'document.createElement(elemName())' | esbuild --pure:document.createElement --minify
+elemName();
+```
+
+```js [JS] $(1,3,5,10>)
+import * as esbuild from 'esbuild'
+
+let js = 'document.createElement(elemName())'
+
+(await esbuild.transform(js, {
+  pure: ['document.createElement'],
+})).code
+'/* @__PURE__ */ document.createElement(elemName());\n'
+
+(await esbuild.transform(js, {
+  pure: ['document.createElement'],
+  minify: true,
+})).code
+'elemName();\n'
+```
+
+```go [Go]
+package main
+
+import "fmt"
+import "github.com/evanw/esbuild/pkg/api"
+
+func main() {
+  js := "document.createElement(elemName())"
+
+  result1 := api.Transform(js, api.TransformOptions{
+    Pure: []string{"document.createElement"},
+  })
+
+  if len(result1.Errors) == 0 {
+    fmt.Printf("%s", result1.Code)
+  }
+
+  result2 := api.Transform(js, api.TransformOptions{
+    Pure:         []string{"document.createElement"},
+    MinifySyntax: true,
+  })
+
+  if len(result2.Errors) == 0 {
+    fmt.Printf("%s", result2.Code)
+  }
+}
+```
+
+:::
+
+Note that if you are trying to remove all calls to `console` API methods such as `console.log` and also want to remove the evaluation of arguments with side effects, there is a special case available for this: you can use the [drop feature](./api/#drop) instead of marking `console` API calls as pure. However, this mechanism is specific to the `console` API and doesn't work with other call expressions.
+
+### Tree shaking
+
+> Supported by: [Build](./api/#build) and [Transform](./api/#transform)
+
+Tree shaking is the term the JavaScript community uses for dead code elimination, a common compiler optimization that automatically removes unreachable code. Within esbuild, this term specifically refers to declaration-level dead code removal.
+
+Tree shaking is easiest to explain with an example. Consider the following file. There is one used function and one unused function:
+
+```js
+// input.js
+function one() {
+  console.log('one')
+}
+function two() {
+  console.log('two')
+}
+one()
+```
+If you bundle this file with `esbuild --bundle input.js --outfile=output.js`, the unused function will automatically be discarded leaving you with the following output:
+
+```js
+// input.js
+function one() {
+  console.log("one");
+}
+one();
+```
+
+This even works if we split our functions off into a separate library file and import them using an `import` statement:
+
+```js
+// lib.js
+export function one() {
+  console.log('one')
+}
+export function two() {
+  console.log('two')
+}
+```
+
+```js
+// input.js
+import * as lib from './lib.js'
+lib.one()
+```
+
+If you bundle this file with `esbuild --bundle input.js --outfile=output.js`, the unused function and unused import will still be automatically discarded leaving you with the following output:
+
+```js
+// lib.js
+function one() {
+  console.log("one");
+}
+
+// input.js
+one();
+```
+
+This way esbuild will only bundle the parts of your packages that you actually use, which can sometimes be a substantial size savings. Note that esbuild's tree shaking implementation relies on the use of ECMAScript module `import` and `export` statements. It does not work with CommonJS modules. Many packages on npm include both formats and esbuild tries to pick the format that works with tree shaking by default. You can customize which format esbuild picks using the [main fields](./api/#main-fields) and/or [conditions](./api/#conditions) options depending on the package.
+
+By default, tree shaking is only enabled either when [bundling](h./api/#bundle) is enabled or when the output [format](./api/#format) is set to `iife`, otherwise tree shaking is disabled. You can force-enable tree shaking by setting it to `true`:
+
+::: code-group
+
+```bash [CLI]
+esbuild app.js --tree-shaking=true
+```
+
+```js [JS]
+import * as esbuild from 'esbuild'
+
+await esbuild.build({
+  entryPoints: ['app.js'],
+  treeShaking: true,
+  outfile: 'out.js',
+})
+```
+
+```go [Go]
+package main
+
+import "github.com/evanw/esbuild/pkg/api"
+import "os"
+
+func main() {
+  result := api.Build(api.BuildOptions{
+    EntryPoints: []string{"app.js"},
+    TreeShaking: api.TreeShakingTrue,
+  })
+
+  if len(result.Errors) > 0 {
+    os.Exit(1)
+  }
+}
+```
+
+:::
+
+You can also force-disable tree shaking by setting it to `false`:
+
+::: code-group
+
+```bash [CLI]
+esbuild app.js --tree-shaking=false
+```
+
+```js [JS]
+import * as esbuild from 'esbuild'
+
+await esbuild.build({
+  entryPoints: ['app.js'],
+  treeShaking: false,
+  outfile: 'out.js',
+})
+```
+
+```go [Go]
+package main
+
+import "github.com/evanw/esbuild/pkg/api"
+import "os"
+
+func main() {
+  result := api.Build(api.BuildOptions{
+    EntryPoints: []string{"app.js"},
+    TreeShaking: api.TreeShakingFalse,
+  })
+
+  if len(result.Errors) > 0 {
+    os.Exit(1)
+  }
+}
+```
+
+:::
+
+#### Tree shaking and side effects
+
+The side effect detection used for tree shaking is conservative, meaning that esbuild only considers code removable as dead code if it can be sure that there are no hidden side effects. For example, primitive literals such as `12.34` and `"abcd"` are side-effect free and can be removed while expressions such as `"ab" + cd` and `foo.bar` are not side-effect free (joining strings invokes `toString()` which can have side effects, and member access can invoke a getter which can also have side effects). Even referencing a global identifier is considered to be a side effect because it will throw a `ReferenceError` if there is no global with that name. Here's an example:
+
+```js
+// These are considered side-effect free
+let a = 12.34;
+let b = "abcd";
+let c = { a: a };
+
+// These are not considered side-effect free
+// since they could cause some code to run
+let x = "ab" + cd;
+let y = foo.bar;
+let z = { [x]: x };
+```
+
+Sometimes it's desirable to allow some code to be tree shaken even if that code can't be automatically determined to have no side effects. This can be done with a [pure annotation comment](./api/#pure) which tells esbuild to trust the author of the code that there are no side effects within the annotated code. The annotation comment is `/* @__PURE__ */` and can only precede a new or call expression. You can annotate an immediately-invoked function expression and put arbitrary side effects inside the function body:
+
+```js
+// This is considered side-effect free due to
+// the annotation, and will be removed if unused
+let gammaTable = /* @__PURE__ */ (() => {
+  // Side-effect detection is skipped in here
+  let table = new Uint8Array(256);
+  for (let i = 0; i < 256; i++)
+    table[i] = Math.pow(i / 255, 2.2) * 255;
+  return table;
+})();
+```
+
+While the fact that `/* @__PURE__ */` only works on call expressions can sometimes make code more verbose, a big benefit of this syntax is that it's portable across many other tools in the JavaScript ecosystem including the popular [UglifyJS](https://github.com/mishoo/uglifyjs) and [Terser](https://github.com/terser/terser) JavaScript minifiers (which are used by other major tools including [Webpack](https://github.com/webpack/webpack) and [Parcel](https://github.com/parcel-bundler/parcel)).
+
+Note that the annotations cause esbuild to assume that the annotated code is side-effect free. If the annotations are wrong and the code actually does have important side effects, these annotations can result in broken code. If you are bundling third-party code with annotations that have been authored incorrectly, you may need to enable [ignoring annotations](./api/#ignore-annotations) to make sure the bundled code is correct.
