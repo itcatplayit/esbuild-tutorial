@@ -5156,3 +5156,358 @@ let gammaTable = /* @__PURE__ */ (() => {
 While the fact that `/* @__PURE__ */` only works on call expressions can sometimes make code more verbose, a big benefit of this syntax is that it's portable across many other tools in the JavaScript ecosystem including the popular [UglifyJS](https://github.com/mishoo/uglifyjs) and [Terser](https://github.com/terser/terser) JavaScript minifiers (which are used by other major tools including [Webpack](https://github.com/webpack/webpack) and [Parcel](https://github.com/parcel-bundler/parcel)).
 
 Note that the annotations cause esbuild to assume that the annotated code is side-effect free. If the annotations are wrong and the code actually does have important side effects, these annotations can result in broken code. If you are bundling third-party code with annotations that have been authored incorrectly, you may need to enable [ignoring annotations](./api/#ignore-annotations) to make sure the bundled code is correct.
+
+## Source maps
+
+### Source root
+
+> Supported by: [Build](./api/#build) and [Transform](./api/#transform)
+
+This feature is only relevant when [source maps](./api/#sourcemap) are enabled. It lets you set the value of the `sourceRoot` field in the source map, which specifies the path that all other paths in the source map are relative to. If this field is not present, all paths in the source map are interpreted as being relative to the directory containing the source map instead.
+
+You can configure `sourceRoot` like this:
+
+::: code-group
+
+```bash [CLI]
+esbuild app.js --sourcemap --source-root=https://raw.githubusercontent.com/some/repo/v1.2.3/
+```
+
+```js [JS]
+import * as esbuild from 'esbuild'
+
+await esbuild.build({
+  entryPoints: ['app.js'],
+  sourcemap: true,
+  sourceRoot: 'https://raw.githubusercontent.com/some/repo/v1.2.3/',
+})
+```
+
+```go [Go]
+package main
+
+import "github.com/evanw/esbuild/pkg/api"
+import "os"
+
+func main() {
+  result := api.Build(api.BuildOptions{
+    EntryPoints: []string{"app.js"},
+    Sourcemap:   api.SourceMapInline,
+    SourceRoot:  "https://raw.githubusercontent.com/some/repo/v1.2.3/",
+  })
+
+  if len(result.Errors) > 0 {
+    os.Exit(1)
+  }
+}
+```
+
+:::
+
+### Sourcefile
+
+> Supported by: [Build](./api/#build) and [Transform](./api/#transform)
+
+This option sets the file name when using an input which has no file name. This happens when using the transform API and when using the build API with stdin. The configured file name is reflected in error messages and in source maps. If it's not configured, the file name defaults to `<stdin>`. It can be configured like this:
+
+::: code-group
+
+```bash [CLI]
+cat app.js | esbuild --sourcefile=example.js --sourcemap
+```
+
+```js [JS]
+import * as esbuild from 'esbuild'
+import fs from 'node:fs'
+
+let js = fs.readFileSync('app.js', 'utf8')
+let result = await esbuild.transform(js, {
+  sourcefile: 'example.js',
+  sourcemap: 'inline',
+})
+
+console.log(result.code)
+```
+
+```go [Go]
+package main
+
+import "fmt"
+import "io/ioutil"
+import "github.com/evanw/esbuild/pkg/api"
+
+func main() {
+  js, err := ioutil.ReadFile("app.js")
+  if err != nil {
+    panic(err)
+  }
+
+  result := api.Transform(string(js),
+    api.TransformOptions{
+      Sourcefile: "example.js",
+      Sourcemap:  api.SourceMapInline,
+    })
+
+  if len(result.Errors) == 0 {
+    fmt.Printf("%s %s", result.Code)
+  }
+}
+```
+
+:::
+
+### Sourcemap
+
+> Supported by: [Build](./api/#build) and [Transform](./api/#transform)
+
+Source maps can make it easier to debug your code. They encode the information necessary to translate from a line/column offset in a generated output file back to a line/column offset in the corresponding original input file. This is useful if your generated code is sufficiently different from your original code (e.g. your original code is TypeScript or you enabled [minification](./api/#minify)). This is also useful if you prefer looking at individual files in your browser's developer tools instead of one big bundled file.
+
+Note that source map output is supported for both JavaScript and CSS, and the same options apply to both. Everything below that talks about `.js` files also applies similarly to `.cs`s files.
+
+There are four different modes for source map generation:
+
+1. `linked`
+
+  This mode means the source map is generated into a separate `.js.map` output file alongside the .js output file, and the .js output file contains a special `//# sourceMappingURL=` comment that points to the `.js.map` output file. That way the browser knows where to find the source map for a given file when you open the debugger. Use `linked` source map mode like this:
+
+::: code-group
+
+```bash [CLI]
+esbuild app.ts --sourcemap --outfile=out.js
+```
+
+```js [JS]
+import * as esbuild from 'esbuild'
+
+await esbuild.build({
+  entryPoints: ['app.ts'],
+  sourcemap: true,
+  outfile: 'out.js',
+})
+```
+
+```go [Go]
+package main
+
+import "github.com/evanw/esbuild/pkg/api"
+import "os"
+
+func main() {
+  result := api.Build(api.BuildOptions{
+    EntryPoints: []string{"app.ts"},
+    Sourcemap:   api.SourceMapLinked,
+    Outfile:     "out.js",
+    Write:       true,
+  })
+
+  if len(result.Errors) > 0 {
+    os.Exit(1)
+  }
+}
+```
+
+:::
+
+2. `external`
+
+  This mode means the source map is generated into a separate `.js.map` output file alongside the `.js` output file, but unlike linked mode the `.js` output file does not contain a `//# sourceMappingURL=` comment. Use `external` source map mode like this:
+
+::: code-group
+
+```bash [CLI]
+esbuild app.ts --sourcemap=external --outfile=out.js
+```
+
+```js [JS]
+import * as esbuild from 'esbuild'
+
+await esbuild.build({
+  entryPoints: ['app.ts'],
+  sourcemap: 'external',
+  outfile: 'out.js',
+})
+```
+
+```go [Go]
+package main
+
+import "github.com/evanw/esbuild/pkg/api"
+import "os"
+
+func main() {
+  result := api.Build(api.BuildOptions{
+    EntryPoints: []string{"app.ts"},
+    Sourcemap:   api.SourceMapExternal,
+    Outfile:     "out.js",
+    Write:       true,
+  })
+
+  if len(result.Errors) > 0 {
+    os.Exit(1)
+  }
+}
+```
+
+:::
+
+3. `inline`
+
+This mode means the source map is appended to the end of the `.js` output file as a base64 payload inside a `//# sourceMappingURL=` comment. No additional `.js.map` output file is generated. Keep in mind that source maps are usually very big because they contain all of your original source code, so you usually do not want to ship code containing `inline` source maps. To remove the source code from the source map (keeping only the file names and the line/column mappings), use the [sources content](./api/#sources-content) option. Use `inline` source map mode like this:
+
+::: code-group
+
+```bash [CLI]
+esbuild app.ts --sourcemap=inline --outfile=out.js
+```
+
+```js [JS]
+import * as esbuild from 'esbuild'
+
+await esbuild.build({
+  entryPoints: ['app.ts'],
+  sourcemap: 'inline',
+  outfile: 'out.js',
+})
+```
+
+```go [Go]
+package main
+
+import "github.com/evanw/esbuild/pkg/api"
+import "os"
+
+func main() {
+  result := api.Build(api.BuildOptions{
+    EntryPoints: []string{"app.ts"},
+    Sourcemap:   api.SourceMapInline,
+    Outfile:     "out.js",
+    Write:       true,
+  })
+
+  if len(result.Errors) > 0 {
+    os.Exit(1)
+  }
+}
+```
+
+:::
+
+4. `both`
+
+  This mode is a combination of `inline` and `external`. The source map is appended inline to the end of the `.js` output file, and another copy of the same source map is written to a separate `.js.map` output file alongside the `.js` output file. Use both source map mode like this:
+
+::: code-group
+
+```bash [CLI]
+esbuild app.ts --sourcemap=both --outfile=out.js
+```
+
+```js [JS]
+import * as esbuild from 'esbuild'
+
+await esbuild.build({
+  entryPoints: ['app.ts'],
+  sourcemap: 'both',
+  outfile: 'out.js',
+})
+```
+
+```go [Go]
+package main
+
+import "github.com/evanw/esbuild/pkg/api"
+import "os"
+
+func main() {
+  result := api.Build(api.BuildOptions{
+    EntryPoints: []string{"app.ts"},
+    Sourcemap:   api.SourceMapInlineAndExternal,
+    Outfile:     "out.js",
+    Write:       true,
+  })
+
+  if len(result.Errors) > 0 {
+    os.Exit(1)
+  }
+}
+```
+
+:::
+
+The [build](./api/#build) API supports all four source map modes listed above, but the [transform](./api/#transform) API does not support the `linked` mode. This is because the output returned from the transform API does not have an associated filename. If you want the output of the transform API to have a source map comment, you can append one yourself. In addition, the CLI form of the transform API only supports the `inline` mode because the output is written to stdout so generating multiple output files is not possible.
+
+If you want to "peek under the hood" to see what a source map does (or to debug problems with your source map), you can upload the relevant output file and the associated source map here: [Source Map Visualization](https://evanw.github.io/source-map-visualization/).
+
+### Using source maps
+
+In the browser, source maps should be automatically picked up by the browser's developer tools as long as the source map setting is enabled. Note that the browser only uses the source maps to alter the display of stack traces when they are logged to the console. The stack traces themselves are not modified so inspecting `error.stack` in your code will still give the unmapped stack trace containing compiled code. Here's how to enable this setting in your browser's developer tools:
+
+- Chrome: ⚙ → Enable JavaScript source maps
+- Safari: ⚙ → Sources → Enable source maps
+- Firefox: ··· → Enable Source Maps
+
+In node, source maps are supported natively starting with [version v12.12.0](https://nodejs.org/en/blog/release/v12.12.0/). This feature is disabled by default but can be enabled with a flag. Unlike in the browser, the actual stack traces are also modified in node so inspecting `error.stack` in your code will give the mapped stack trace containing your original source code. Here's how to enable this setting in node (the `--enable-source-maps` flag must come before the script file name):
+
+```bash
+node --enable-source-maps app.js
+```
+
+## Sources content
+
+> Supported by: [Build](./api/#build) and [Transform](./api/#transform)
+
+[Source maps](./api/#sourcemap) are generated using [version 3](https://sourcemaps.info/spec.html) of the source map format, which is by far the most widely-supported variant. Each source map will look something like this:
+
+```json
+{
+  "version": 3,
+  "sources": ["bar.js", "foo.js"],
+  "sourcesContent": ["bar()", "foo()\nimport './bar'"],
+  "mappings": ";AAAA;;;ACAA;",
+  "names": []
+}
+```
+
+The `sourcesContent` field is an optional field that contains all of the original source code. This is helpful for debugging because it means the original source code will be available in the debugger.
+
+However, it's not needed in some scenarios. For example, if you are just using source maps in production to generate stack traces that contain the original file name, you don't need the original source code because there is no debugger involved. In that case it can be desirable to omit the `sourcesContent` field to make the source map smaller:
+
+::: code-group
+
+```bash [CLI]
+esbuild --bundle app.js --sourcemap --sources-content=false
+```
+
+```js [JS]
+import * as esbuild from 'esbuild'
+
+await esbuild.build({
+  bundle: true,
+  entryPoints: ['app.js'],
+  sourcemap: true,
+  sourcesContent: false,
+  outfile: 'out.js',
+})
+```
+
+```go [Go]
+package main
+
+import "github.com/evanw/esbuild/pkg/api"
+import "os"
+
+func main() {
+  result := api.Build(api.BuildOptions{
+    Bundle:         true,
+    EntryPoints:    []string{"app.js"},
+    Sourcemap:      api.SourceMapInline,
+    SourcesContent: api.SourcesContentExclude,
+  })
+
+  if len(result.Errors) > 0 {
+    os.Exit(1)
+  }
+}
+```
+
+:::
