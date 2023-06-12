@@ -3,7 +3,7 @@ import { type Router } from 'vitepress/client'
 import { onMounted, watch } from 'vue'
 
 let prevGroupIndex = 0
-let groupsDoneWork = []
+let groupsDoneWork = {}
 
 function initCodeGroup() {
   const oldLanguage = localStorage.getItem('vitepress-markdown-language')
@@ -29,12 +29,11 @@ function initCodeGroup() {
   }, 500)
 }
 
-
 export async function useCodeGroups(router: Router) {
   if (inBrowser) {
     watch(() => router.route.path, (to, from) => {
       prevGroupIndex = 0
-      groupsDoneWork = []
+      groupsDoneWork = {}
       initCodeGroup()
     })
 
@@ -59,10 +58,13 @@ export async function useCodeGroups(router: Router) {
 
         const allgroups = Array.from(document ?.querySelectorAll('.vp-code-group'))
         for (let gidx = prevGroupIndex, len = allgroups.length; gidx < len; gidx++) {
-          if (groupsDoneWork.includes(gidx)) {
-            if (groupsDoneWork.length === len) {
-              groupsDoneWork = []
-              prevGroupIndex = 0
+          if (groupsDoneWork[gidx + '']) {
+            if (Object.keys(groupsDoneWork).length === len) {
+              const ttimer = setTimeout(() => {
+                groupsDoneWork = {}
+                prevGroupIndex = 0
+                clearTimeout(ttimer)
+              }, 500)
             }
             return
           }
@@ -78,21 +80,9 @@ export async function useCodeGroups(router: Router) {
             currentIdx++
           }
           if (!current) continue
-          // ------------ tabname/filename ---------------------
-          const oInputs = Array.from(group.querySelectorAll('.tabs input'))
-          for (let i = 0, len = oInputs.length; i < len; i++) {
-            const fel = oInputs[i]
-            if (fel ?.nextElementSibling ?.textContent === tabname) {
-              if (fel !== el && i !== currentIdx) {
-                prevGroupIndex = gidx + 1
-                fel?.click()
-                break  
-              }
-            }
-          }
-          // ------------ tabname/filename ---------------------
          
           // ------------ language ---------------------
+          let hasSameLaug = false
           const blds = Array.from(group ?.querySelectorAll('.blocks div[class*="language-"]'))
           for (let nidx = 0, len = blds.length; nidx < len; nidx++) {
             const next = blds[nidx]
@@ -105,13 +95,30 @@ export async function useCodeGroups(router: Router) {
               const fel = group.querySelectorAll('.tabs input')[nidx]
               if (fel !== el && nidx !== currentIdx) {
                 prevGroupIndex = gidx + 1
-                fel.click()
+                hasSameLaug = true
+                fel?.click()
                 break
               }
             }
           }
           // ------------ language ---------------------
-          groupsDoneWork.push(gidx)
+          
+          // ------------ tabname/filename ---------------------
+          // if (!hasSameLaug) {
+          //   const oInputs = Array.from(group.querySelectorAll('.tabs input'))
+          //   for (let i = 0, len = oInputs.length; i < len; i++) {
+          //     const fel = oInputs[i]
+          //     if (fel ?.nextElementSibling ?.textContent === tabname) {
+          //       if (fel !== el && i !== currentIdx) {
+          //         prevGroupIndex = gidx + 1
+          //         fel?.click()
+          //         break  
+          //       }
+          //     }
+          //   }
+          // }
+          // ------------ tabname/filename ---------------------
+          groupsDoneWork[gidx + ''] = true
         }
 
       }
