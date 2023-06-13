@@ -5511,3 +5511,608 @@ func main() {
 ```
 
 :::
+
+## Build metadata
+
+### Analyze
+
+> Supported by: [Build](./api/#build)
+
+::: info
+If you're looking for an interactive visualization, try esbuild's [Bundle Size Analyzer](./analyze/) instead. You can upload your esbuild [metafile](./api/#metafile) to see a bundle size breakdown.
+:::
+
+Using the analyze feature generates an easy-to-read report about the contents of your bundle:
+
+::: code-group
+
+```bash [CLI] $(1)
+esbuild --bundle example.jsx --outfile=out.js --minify --analyze
+
+  out.js                                                                    27.6kb  100.0%
+   ├ node_modules/react-dom/cjs/react-dom-server.browser.production.min.js  19.2kb   69.8%
+   ├ node_modules/react/cjs/react.production.min.js                          5.9kb   21.4%
+   ├ node_modules/object-assign/index.js                                     962b     3.4%
+   ├ example.jsx                                                             137b     0.5%
+   ├ node_modules/react-dom/server.browser.js                                 50b     0.2%
+   └ node_modules/react/index.js                                              50b     0.2%
+
+...
+```
+
+```js [JS]
+import * as esbuild from 'esbuild'
+
+let result = await esbuild.build({
+  entryPoints: ['example.jsx'],
+  outfile: 'out.js',
+  minify: true,
+  metafile: true,
+})
+
+console.log(await esbuild.analyzeMetafile(result.metafile))
+```
+
+```go [Go]
+package main
+
+import "github.com/evanw/esbuild/pkg/api"
+import "fmt"
+import "os"
+
+func main() {
+  result := api.Build(api.BuildOptions{
+    EntryPoints:       []string{"example.jsx"},
+    Outfile:           "out.js",
+    MinifyWhitespace:  true,
+    MinifyIdentifiers: true,
+    MinifySyntax:      true,
+    Metafile:          true,
+  })
+
+  if len(result.Errors) > 0 {
+    os.Exit(1)
+  }
+
+  fmt.Printf("%s", api.AnalyzeMetafile(result.Metafile, api.AnalyzeMetafileOptions{}))
+}
+```
+
+:::
+
+The information shows which input files ended up in each output file as well as the percentage of the output file they ended up taking up. If you would like additional information, you can enable the "verbose" mode. This currently shows the import path from the entry point to each input file which tells you why a given input file is being included in the bundle:
+
+::: code-group
+
+```bash [CLI] $(1)
+esbuild --bundle example.jsx --outfile=out.js --minify --analyze=verbose
+
+  out.js ─────────────────────────────────────────────────────────────────── 27.6kb ─ 100.0%
+   ├ node_modules/react-dom/cjs/react-dom-server.browser.production.min.js ─ 19.2kb ── 69.8%
+   │  └ node_modules/react-dom/server.browser.js
+   │     └ example.jsx
+   ├ node_modules/react/cjs/react.production.min.js ───────────────────────── 5.9kb ── 21.4%
+   │  └ node_modules/react/index.js
+   │     └ example.jsx
+   ├ node_modules/object-assign/index.js ──────────────────────────────────── 962b ──── 3.4%
+   │  └ node_modules/react-dom/cjs/react-dom-server.browser.production.min.js
+   │     └ node_modules/react-dom/server.browser.js
+   │        └ example.jsx
+   ├ example.jsx ──────────────────────────────────────────────────────────── 137b ──── 0.5%
+   ├ node_modules/react-dom/server.browser.js ──────────────────────────────── 50b ──── 0.2%
+   │  └ example.jsx
+   └ node_modules/react/index.js ───────────────────────────────────────────── 50b ──── 0.2%
+      └ example.jsx
+
+...
+```
+
+```js [JS]
+import * as esbuild from 'esbuild'
+
+let result = await esbuild.build({
+  entryPoints: ['example.jsx'],
+  outfile: 'out.js',
+  minify: true,
+  metafile: true,
+})
+
+console.log(await esbuild.analyzeMetafile(result.metafile, {
+  verbose: true,
+}))
+```
+
+```go [Go]
+package main
+
+import "github.com/evanw/esbuild/pkg/api"
+import "fmt"
+import "os"
+
+func main() {
+  result := api.Build(api.BuildOptions{
+    EntryPoints:       []string{"example.jsx"},
+    Outfile:           "out.js",
+    MinifyWhitespace:  true,
+    MinifyIdentifiers: true,
+    MinifySyntax:      true,
+    Metafile:          true,
+  })
+
+  if len(result.Errors) > 0 {
+    os.Exit(1)
+  }
+
+  fmt.Printf("%s", api.AnalyzeMetafile(result.Metafile, api.AnalyzeMetafileOptions{
+    Verbose: true,
+  }))
+}
+```
+
+:::
+
+This analysis is just a visualization of the information that can be found in the metafile. If this analysis doesn't exactly suit your needs, you are welcome to build your own visualization using the information in the metafile.
+
+Note that this formatted analysis summary is intended for humans, not machines. The specific formatting may change over time which will likely break any tools that try to parse it. You should not write a tool to parse this data. You should be using the information in the [JSON metadata file](./api/#metafile) instead. Everything in this visualization is derived from the JSON metadata so you are not losing out on any information by not parsing esbuild's formatted analysis summary.
+
+### Metafile
+
+> Supported by: [Build](./api/#build)
+
+This option tells esbuild to produce some metadata about the build in JSON format. The following example puts the metadata in a file called `meta.json`:
+
+::: code-group
+
+```bash [CLI]
+esbuild app.js --bundle --metafile=meta.json --outfile=out.js
+```
+
+```js [JS]
+import * as esbuild from 'esbuild'
+import fs from 'node:fs'
+
+let result = await esbuild.build({
+  entryPoints: ['app.js'],
+  bundle: true,
+  metafile: true,
+  outfile: 'out.js',
+})
+
+fs.writeFileSync('meta.json', JSON.stringify(result.metafile))
+```
+
+```go [Go]
+package main
+
+import "io/ioutil"
+import "github.com/evanw/esbuild/pkg/api"
+import "os"
+
+func main() {
+  result := api.Build(api.BuildOptions{
+    EntryPoints: []string{"app.js"},
+    Bundle:      true,
+    Metafile:    true,
+    Outfile:     "out.js",
+    Write:       true,
+  })
+
+  if len(result.Errors) > 0 {
+    os.Exit(1)
+  }
+
+  ioutil.WriteFile("meta.json", []byte(result.Metafile), 0644)
+}
+```
+
+:::
+
+This data can then be analyzed by other tools. For an interactive visualization, you can use esbuild's own [Bundle Size Analyzer](./analyze/). For a quick textual analysis, you can use esbuild's build-in [analyze](./api/#analyze) feature. Or you can write your own analysis which uses this information.
+
+The metadata JSON format looks like this (described using a TypeScript interface):
+
+```ts
+interface Metafile {
+  inputs: {
+    [path: string]: {
+      bytes: number
+      imports: {
+        path: string
+        kind: string
+        external?: boolean
+        original?: string
+      }[]
+      format?: string
+    }
+  }
+  outputs: {
+    [path: string]: {
+      bytes: number
+      inputs: {
+        [path: string]: {
+          bytesInOutput: number
+        }
+      }
+      imports: {
+        path: string
+        kind: string
+        external?: boolean
+      }[]
+      exports: string[]
+      entryPoint?: string
+      cssBundle?: string
+    }
+  }
+}
+```
+
+## Logging
+
+### Color
+
+> Supported by: [Build](./api/#build) and [Transform](./api/#transform)
+
+This option enables or disables colors in the error and warning messages that esbuild writes to stderr file descriptor in the terminal. By default, color is automatically enabled if stderr is a TTY session and automatically disabled otherwise. Colored output in esbuild looks like this:
+
+<pre><span></span><span class="color-yellow">▲ </span><span class="bg-yellow color-yellow">[</span><span class="bg-yellow color-black">WARNING</span><span class="bg-yellow color-yellow">]</span><span> </span><span class="color-bold">The "typeof" operator will never evaluate to "null"</span><span> [impossible-typeof]
+
+    example.js:2:16:
+</span><span class="color-dim">      2 │ log(typeof x == </span><span class="color-green">"null"</span><span class="color-dim">)
+        ╵                 </span><span class="color-green">~~~~~~</span><span>
+
+  The expression "typeof x" actually evaluates to "object" in JavaScript, not "null". You need to
+  use "x === null" to test for null.
+
+</span><span class="color-red">✘ </span><span class="bg-red color-red">[</span><span class="bg-red color-white">ERROR</span><span class="bg-red color-red">]</span><span> </span><span class="color-bold">Could not resolve "logger"</span><span>
+
+    example.js:1:16:
+</span><span class="color-dim">      1 │ import log from </span><span class="color-green">"logger"</span><span class="color-dim">
+        ╵                 </span><span class="color-green">~~~~~~~~</span><span>
+
+  You can mark the path "logger" as external to exclude it from the bundle, which will remove this
+  error.</span></pre>
+
+Colored output can be force-enabled by setting color to `true`. This is useful if you are piping esbuild's stderr output into a TTY yourself:
+
+::: code-group
+
+```bash [CLI]
+echo 'typeof x == "null"' | esbuild --color=true 2> stderr.txt
+```
+
+```js [JS]
+import * as esbuild from 'esbuild'
+
+let js = 'typeof x == "null"'
+await esbuild.transform(js, {
+  color: true,
+})
+```
+
+```go [Go]
+package main
+
+import "fmt"
+import "github.com/evanw/esbuild/pkg/api"
+
+func main() {
+  js := "typeof x == 'null'"
+
+  result := api.Transform(js, api.TransformOptions{
+    Color: api.ColorAlways,
+  })
+
+  if len(result.Errors) == 0 {
+    fmt.Printf("%s", result.Code)
+  }
+}
+```
+
+:::
+
+Colored output can also be set to `false` to disable colors.
+
+### Format messages
+
+> Supported by: [Build](./api/#build) and [Transform](./api/#transform)
+
+This API call can be used to format the log errors and warnings returned by the [build](./api/#build) API and [transform](./api/#transform) APIs as a string using the same formatting that esbuild itself uses. This is useful if you want to customize the way esbuild's logging works, such as processing the log messages before they are printed or printing them to somewhere other than to the console. Here's an example:
+
+::: code-group
+
+```js [JS]
+import * as esbuild from 'esbuild'
+
+let formatted = await esbuild.formatMessages([
+  {
+    text: 'This is an error',
+    location: {
+      file: 'app.js',
+      line: 10,
+      column: 4,
+      length: 3,
+      lineText: 'let foo = bar',
+    },
+  },
+], {
+  kind: 'error',
+  color: false,
+  terminalWidth: 100,
+})
+
+console.log(formatted.join('\n'))
+```
+
+```go [Go]
+package main
+
+import "fmt"
+import "github.com/evanw/esbuild/pkg/api"
+import "strings"
+
+func main() {
+  formatted := api.FormatMessages([]api.Message{
+    {
+      Text: "This is an error",
+      Location: &api.Location{
+        File:     "app.js",
+        Line:     10,
+        Column:   4,
+        Length:   3,
+        LineText: "let foo = bar",
+      },
+    },
+  }, api.FormatMessagesOptions{
+    Kind:          api.ErrorMessage,
+    Color:         false,
+    TerminalWidth: 100,
+  })
+
+  fmt.Printf("%s", strings.Join(formatted, "\n"))
+}
+```
+
+:::
+
+#### Options
+
+The following options can be provided to control the formatting:
+
+::: code-group
+
+```js [JS]
+interface FormatMessagesOptions {
+  kind: 'error' | 'warning';
+  color?: boolean;
+  terminalWidth?: number;
+}
+```
+
+```go [Go]
+type FormatMessagesOptions struct {
+  Kind          MessageKind
+  Color         bool
+  TerminalWidth int
+}
+```
+
+:::
+
+- `kind`
+
+  Controls whether these log messages are printed as errors or warnings.
+
+- `color`
+
+  If this is true, Unix-style terminal escape codes are included for colored output.
+
+- `terminalWidth`
+
+  Provide a positive value to wrap long lines so that they don't overflow past the provided column width. Provide 0 to disable word wrapping.
+
+### Log level
+
+> Supported by: [Build](./api/#build) and [Transform](./api/#transform)
+
+The log level can be changed to prevent esbuild from printing warning and/or error messages to the terminal. The six log levels are:
+
+- `silent`
+
+  Do not show any log output. This is the default log level when using the JS [transform](./api/#transform) API.
+
+- `error`
+
+  Only show errors.
+
+- `warning`
+
+  Only show warnings and errors. This is the default log level when using the JS [build](./api/#build) API.
+
+- `info`
+
+  Show warnings, errors, and an output file summary. This is the default log level when using the CLI.
+
+- `debug`
+
+  Log everything from info and some additional messages that may help you debug a broken bundle. This log level has a performance impact and some of the messages may be false positives, so this information is not shown by default.
+
+- `verbose`
+
+  This generates a torrent of log messages and was added to debug issues with file system drivers. It's not intended for general use.
+
+The log level can be set like this:
+
+::: code-group
+
+```bash [CLI]
+echo 'typeof x == "null"' | esbuild --log-level=error
+```
+
+```js [JS]
+import * as esbuild from 'esbuild'
+
+let js = 'typeof x == "null"'
+await esbuild.transform(js, {
+  logLevel: 'error',
+})
+```
+
+```go [Go]
+package main
+
+import "fmt"
+import "github.com/evanw/esbuild/pkg/api"
+
+func main() {
+  js := "typeof x == 'null'"
+
+  result := api.Transform(js, api.TransformOptions{
+    LogLevel: api.LogLevelError,
+  })
+
+  if len(result.Errors) == 0 {
+    fmt.Printf("%s", result.Code)
+  }
+}
+```
+
+:::
+
+### Log limit
+
+> Supported by: [Build](./api/#build) and [Transform](./api/#transform)
+
+By default, esbuild stops reporting log messages after 10 messages have been reported. This avoids the accidental generation of an overwhelming number of log messages, which can easily lock up slower terminal emulators such as Windows command prompt. It also avoids accidentally using up the whole scroll buffer for terminal emulators with limited scroll buffers.
+
+The log limit can be changed to another value, and can also be disabled completely by setting it to zero. This will show all log messages:
+
+::: code-group
+
+```bash [CLI]
+esbuild app.js --log-limit=0
+```
+
+```js [JS]
+import * as esbuild from 'esbuild'
+
+await esbuild.build({
+  entryPoints: ['app.js'],
+  logLimit: 0,
+  outfile: 'out.js',
+})
+```
+
+```go [Go]
+package main
+
+import "github.com/evanw/esbuild/pkg/api"
+import "os"
+
+func main() {
+  result := api.Build(api.BuildOptions{
+    EntryPoints: []string{"app.js"},
+    LogLimit:    0,
+  })
+
+  if len(result.Errors) > 0 {
+    os.Exit(1)
+  }
+}
+```
+
+:::
+
+### Log override
+
+> Supported by: [Build](./api/#build) and [Transform](./api/#transform)
+
+This feature lets you change the log level of individual types of log messages. You can use it to silence a particular type of warning, to enable additional warnings that aren't enabled by default, or even to turn warnings into errors.
+
+For example, when targeting older browsers, esbuild automatically transforms regular expression literals which use features that are too new for those browsers into `new RegExp()` calls to allow the generated code to run without being considered a syntax error by the browser. However, these calls will still throw at runtime if you don't add a polyfill for `RegExp` because that regular expression syntax is still unsupported. If you want esbuild to generate a warning when you use newer unsupported regular expression syntax, you can do that like this:
+
+::: code-group
+
+```bash [CLI]
+esbuild app.js --log-override:unsupported-regexp=warning --target=chrome50
+```
+
+```js [JS]
+import * as esbuild from 'esbuild'
+
+await esbuild.build({
+  entryPoints: ['app.js'],
+  logOverride: {
+    'unsupported-regexp': 'warning',
+  },
+  target: 'chrome50',
+})
+```
+
+```go [Go]
+package main
+
+import "github.com/evanw/esbuild/pkg/api"
+import "os"
+
+func main() {
+  result := api.Build(api.BuildOptions{
+    EntryPoints: []string{"app.js"},
+    LogOverride: map[string]api.LogLevel{
+      "unsupported-regexp": api.LogLevelWarning,
+    },
+    Engines: []api.Engine{
+      {Name: api.EngineChrome, Version: "50"},
+    },
+  })
+
+  if len(result.Errors) > 0 {
+    os.Exit(1)
+  }
+}
+```
+
+:::
+
+The log level for each message type can be overridden to any value supported by the [log level](./api/#log-level) setting. All currently-available message types are listed below (click on each one for an example log message):
+
+<LogOverride />
+
+These message types should be reasonably stable but new ones may be added and old ones may occasionally be removed in the future. If a message type is removed, any overrides for that message type will just be silently ignored.
+
+<script setup>
+import LogOverride from '../components/LogOverride.vue'
+</script>
+
+<style scoped>
+.color-yellow {
+  color: #F2D42D;
+}
+.bg-yellow {
+  background: #F2D42D;
+}
+.color-black {
+  color: #000;
+}
+.color-green {
+  color: #58A549;
+}
+.color-dim {
+  color: #777;
+}
+.bg-red {
+  background: #e24834;
+}
+.color-red {
+  color: #e24834;
+}
+pre {
+  background: rgba(127,127,127,.1);
+  position: relative;
+  font: 14px/140% Noto Sans Mono,monospace;
+  border: 1px solid rgba(127,127,127,.5);
+  border-radius: 10px;
+  padding: 8px 10px;
+  margin: 30px 0;
+  overflow-x: auto;
+}
+</style>
