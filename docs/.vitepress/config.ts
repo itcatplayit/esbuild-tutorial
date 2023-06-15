@@ -101,9 +101,9 @@ export default defineConfig({
           text: '在 GitHub 上编辑此页面',
         },
         sidebar: [
-          { text: 'Getting Started', link: '/zh_cn/official/getting-started', activeMatch: '/zh_cn/official/', },
+          { text: '快速开始', link: '/zh_cn/official/getting-started', activeMatch: '/zh_cn/official/', },
           { text: 'API', link: '/zh_cn/official/api', activeMatch: '/zh_cn/official/', },
-          { text: 'content Types', link: '/zh_cn/official/content-types', activeMatch: '/zh_cn/official/', },
+          { text: '内容类型', link: '/zh_cn/official/content-types', activeMatch: '/zh_cn/official/', },
           { text: 'FAQ', link: '/zh_cn/official/faq', activeMatch: '/zh_cn/official/', },
           { text: '包大小分析', link: 'https://esbuild.github.io/analyze/' }
         ],

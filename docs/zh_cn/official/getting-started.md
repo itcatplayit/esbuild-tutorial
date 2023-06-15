@@ -2,13 +2,13 @@
 
 ## 安装 esbuild
 
-First, download and install the esbuild command locally. A prebuilt native executable can be installed using [npm](https://docs.npmjs.com/cli/v8/commands/npm-install) (which is automatically installed when you install the [node](https://nodejs.org/) JavaScript runtime):
+首先，本地下载安装esbuild命令。使用[npm](https://docs.npmjs.com/cli/v8/commands/npm-install)（安装了JavaScript运行时的[node](https://nodejs.org/) JavaScript runtime)后，会自动安装）可以安装一个预编译好的本地可执行程序：
 
 ```:no-line-numbers
 npm install --save-exact esbuild
 ```
 
-This should have installed esbuild in your local `node_modules` folder. You can run the esbuild executable to verify that everything is working correctly:
+这会安装esbuild到你当前目录下的`node_modules`目录里。可以运行esbuild命令来测试一下是否安装运行正确：
 
 ::: code-group
 
@@ -22,7 +22,7 @@ This should have installed esbuild in your local `node_modules` folder. You can 
 
 :::
 
-The recommended way to install esbuild is to install the native executable using npm. But if you don't want to do that, there are also some [other ways to install](#other-ways-to-install).
+推荐的安装esbuild的方式是使用npm安装本地可执行程序。但如果你不想如此，可以尝试[其他安装方式](#other-ways-to-install)。
 
 ## Your first bundle
 
