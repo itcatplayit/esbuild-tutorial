@@ -207,3 +207,130 @@ If the Node interpretation is used, this code will print `{ default: 'foo' }`. T
 *If you are a library author:* When writing new code, you should strongly consider avoiding the `default` export entirely. It has unfortunately been tainted with compatibility problems and using it will likely cause problems for your users at some point.
 
 *If you are a library user:* By default, esbuild will use the Babel interpretation. If you want esbuild to use the Node interpretation instead, you need to either put your code in a file ending in `.mts` or `.mjs`, or you need to add `"type": "module"` to your `package.json` file. The rationale is that Node's native ESM support can only run ESM code if the file extension is `.mjs` or `"type": "module"` is present, so doing that is a good signal that the code is intended to be run in Node, and should therefore use the Node interpretation of `default` import. This is the same heuristic that Webpack uses.
+
+## TypeScript
+
+Loader: `ts` or `tsx`
+
+This loader is enabled by default for `.ts`, `.tsx`, `.mts`, and `.cts` files, which means esbuild has built-in support for parsing TypeScript syntax and discarding the type annotations. However, esbuild does not do any type checking so you will still need to run `tsc -noEmit` in parallel with esbuild to check types. This is not something esbuild does itself.
+
+TypeScript type declarations like these are parsed and ignored (a non-exhaustive list):
+
+
+| Syntax feature | Example |
+| ---	| --- |
+| Interface declarations |	`interface Foo {}` |
+| Type declarations |	`type Foo = number` |
+| Function declarations |	`function foo(): void;` |
+| Ambient declarations |	`declare module 'foo' {}` |
+| Type-only imports |	`import type {Type} from 'foo'` |
+| Type-only exports |	`export type {Type} from 'foo'` |
+| Type-only import specifiers |	`import {type Type} from 'foo'` |
+| Type-only export specifiers |	`export {type Type} from 'foo'` |
+
+TypeScript-only syntax extensions are supported, and are always converted to JavaScript (a non-exhaustive list):
+
+| Syntax feature | Example | Notes |
+| ---	|	--- | --- |
+| Namespaces	|	`namespace Foo {}`	|		 |
+| Enums	 | `enum Foo { A, B }` |	 |
+| Const enums |	`const enum Foo { A, B }`	 |
+| Generic type parameters |	`<T>(a: T): T => a` |	Must write <T,>(... with the tsx loader |
+| JSX with types |	`<Element<T>/>`	 | |
+| Type casts |	`a as B` and `<B>a`	 | |
+| Type imports |	`import {Type} from 'foo'` |	Handled by removing all unused imports |
+| Type exports |	`export {Type} from 'foo'` |	Handled by ignoring missing exports in TypeScript files |
+| Experimental decorators |	`@sealed class Foo {}` |	Requires [`experimentalDecorators`](https://www.typescriptlang.org/tsconfig#experimentalDecorators), does not support [`emitDecoratorMetadata`](https://www.typescriptlang.org/tsconfig#emitDecoratorMetadata) |
+| Instantiation expressions |	`Array<number>` |	TypeScript 4.7+ |
+| extends on infer |	`infer A extends B` |	TypeScript 4.7+ |
+| Variance annotations |	`type A<out B> = () => B` |	TypeScript 4.7+ |
+| The satisfies operator |	`a satisfies T` |	TypeScript 4.9+ |
+| const type parameters |	`class Foo<const T> {}` |	TypeScript 5.0+ |
+
+### TypeScript caveats
+
+You should keep the following things in mind when using TypeScript with esbuild (in addition to the [JavaScript caveats](./content-types/#javascript-caveats)):
+
+#### Files are compiled independently
+
+Even when transpiling a single module, the TypeScript compiler actually still parses imported files so it can tell whether an imported name is a type or a value. However, tools like esbuild and Babel (and the TypeScript compiler's `transpileModule` API) compile each file in isolation so they can't tell if an imported name is a type or a value.
+
+Because of this, you should enable the [`isolatedModules`](https://www.typescriptlang.org/tsconfig#isolatedModules) TypeScript configuration option if you use TypeScript with esbuild. This option prevents you from using features which could cause mis-compilation in environments like esbuild where each file is compiled independently without tracing type references across files. For example, it prevents you from re-exporting types from another module using `export {T} from './types'` (you need to use `export type {T} from './types'` instead).
+
+#### Imports follow ECMAScript module behavior
+
+For historical reasons, the TypeScript compiler compiles ESM (ECMAScript module) syntax to CommonJS syntax by default. For example, `import * as foo from 'foo'` is compiled to `const foo = require('foo')`. Presumably this happened because ECMAScript modules were still a proposal when TypeScript adopted the syntax. However, this is legacy behavior that doesn't match how this syntax behaves on real platforms such as node. For example, the require function can return any JavaScript value including a string but the `import * as` syntax always results in an object and cannot be a string.
+
+To avoid problems due to this legacy feature, you should enable the [`esModuleInterop`](https://www.typescriptlang.org/tsconfig#esModuleInterop) TypeScript configuration option if you use TypeScript with esbuild. Enabling it disables this legacy behavior and makes TypeScript's type system compatible with ESM. This option is not enabled by default because it would be a breaking change for existing TypeScript projects, but Microsoft [highly recommends applying it both to new and existing projects](https://www.typescriptlang.org/docs/handbook/release-notes/typescript-2-7.html#support-for-import-d-from-cjs-from-commonjs-modules-with---esmoduleinterop) (and then updating your code) for better compatibility with the rest of the ecosystem.
+
+Specifically this means that importing a non-object value from a CommonJS module with ESM import syntax must be done using a default import instead of using `import * as`. So if a CommonJS module exports a function via `module.exports = fn`, you need to use `import fn from 'path'` instead of `import * as fn from 'path'`.
+
+#### Features that need a type system are not supported
+
+TypeScript types are treated as comments and are ignored by esbuild, so TypeScript is treated as "type-checked JavaScript." The interpretation of the type annotations is up to the TypeScript type checker, which you should be running in addition to esbuild if you're using TypeScript. This is the same compilation strategy that Babel's TypeScript implementation uses. However, it means that some TypeScript compilation features which require type interpretation to work do not work with esbuild.
+
+Specifically:
+
+- The [`emitDecoratorMetadata`](https://www.typescriptlang.org/tsconfig#emitDecoratorMetadata) TypeScript configuration option is not supported. This feature passes a JavaScript representation of the corresponding TypeScript type to the attached decorator function. Since esbuild does not replicate TypeScript's type system, it does not have enough information to implement this feature.
+
+- The [`declaration`](https://www.typescriptlang.org/tsconfig#declaration) TypeScript configuration option (i.e. generation of .d.ts files) is not supported. If you are writing a library in TypeScript and you want to publish the compiled JavaScript code as a package for others to use, you will probably also want to publish type declarations. This is not something that esbuild can do for you because it doesn't retain any type information. You will likely either need to use the TypeScript compiler to generate them or manually write them yourself.
+
+#### Only certain `tsconfig.json` fields are respected
+
+During bundling, the path resolution algorithm in esbuild will consider the contents of the `tsconfig.json` file in the closest parent directory containing one and will modify its behavior accordingly. It is also possible to explicitly set the tsconfig.json path with the build API using esbuild's [`tsconfig`](./api/#tsconfig) setting and to explicitly pass in the contents of a `tsconfig.json` file with the transform API using esbuild's [`tsconfigRaw`](./api/#tsconfig-raw) setting. However, esbuild currently only inspects the following fields in `tsconfig.json` files:
+
+- [`experimentalDecorators`](https://www.typescriptlang.org/tsconfig#experimentalDecorators)
+
+  This option enables the transformation of decorator syntax in TypeScript files. The transformation follows the outdated decorator design that TypeScript itself follows when `experimentalDecorators` is enabled.
+
+  Note that there is an updated design for decorators that is being added to JavaScript, as well as to TypeScript when `experimentalDecorators` is disabled. This is not something that esbuild implements yet, so esbuild will currently not transform decorators when `experimentalDecorators` is disabled.
+
+- [`target`](https://www.typescriptlang.org/tsconfig#target)
+  [`useDefineForClassFields`](https://www.typescriptlang.org/tsconfig#useDefineForClassFields)
+
+  These options control whether class fields in TypeScript files are compiled with "define" semantics or "assign" semantics:
+
+    - **Define semantics** (esbuild's default behavior): TypeScript class fields behave like normal JavaScript class fields. Field initializers do not trigger setters on the base class. You should write all new code this way going forward.
+
+    - **Assign semantics** (which you have to explicitly enable): esbuild emulates TypeScript's legacy class field behavior. Field initializers will trigger base class setters. This may be needed to get legacy code to run.
+
+  The way to disable define semantics (and therefore enable assign semantics) with esbuild is the same way you disable it with TypeScript: by setting `useDefineForClassFields` to false in your `tsconfig.json` file.
+
+  For compatibility with TypeScript, esbuild also copies TypeScript's behavior where when `useDefineForClassFields` is not specified, it defaults to false when `tsconfig.json` contains a `target` that is earlier than `ES2022`. But I recommend setting `useDefineForClassFields` explicitly if you need it instead of relying on this default value coming from the value of the target setting. Note that the `target` setting in `tsconfig.json` is only used by esbuild for determining the default value of `useDefineForClassFields`. It does not affect esbuild's own [`target`](./api/#target) setting, even though they have the same name.
+
+- [`baseUrl`](https://www.typescriptlang.org/tsconfig#baseUrl)
+  [`paths`](https://www.typescriptlang.org/tsconfig#paths)
+
+  These options affect esbuild's resolution of `import/require` paths to files on the file system. You can use it to define package aliases and to rewrite import paths in other ways. Note that using esbuild for import path transformation requires [`bundling`](./api/#bundle) to be enabled, as esbuild's path resolution only happens during bundling. Also note that esbuild also has a native [`alias`](./api/#alias) feature which you may want to use instead.
+
+- [`jsx`](https://www.typescriptlang.org/tsconfig#jsx)
+  [`jsxFactory`](https://www.typescriptlang.org/tsconfig#jsxFactory)
+  [`jsxFragmentFactory`](https://www.typescriptlang.org/tsconfig#jsxFragmentFactory)
+  [`jsxImportSource`](https://www.typescriptlang.org/tsconfig#jsxImportSource)
+
+  These options affect esbuild's transformation of JSX syntax into JavaScript. They are equivalent to esbuild's native options for these settings: [`jsx`](./api/#jsx), [`jsxFactory`](./api/#jsx-factory), [`jsxFragment`](./api/#jsx-fragment), and [`jsxImportSource`](./api/#jsx-import-source).
+
+- [`alwaysStrict`](https://www.typescriptlang.org/tsconfig#alwaysStrict)
+  [`strict`](https://www.typescriptlang.org/tsconfig#strict)
+
+  If either of these options are enabled, esbuild will consider all code in all TypeScript files to be in [strict mode](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Strict_mode) and will prefix generated code with `"use strict"` unless the output [`format`](./api/#format) is set to [`esm`](./api/#format-esm) (since all ESM files are automatically in strict mode).
+
+- [`verbatimModuleSyntax`](https://www.typescriptlang.org/tsconfig/#verbatimModuleSyntax)
+  [`importsNotUsedAsValues`](https://www.typescriptlang.org/tsconfig#importsNotUsedAsValues)
+  [`preserveValueImports`](https://www.typescriptlang.org/tsconfig/#preserveValueImports)
+
+  By default, the TypeScript compiler will delete unused imports when converting TypeScript to JavaScript. That way imports which turn out to be type-only imports accidentally don't cause an error at run-time. This behavior is also implemented by esbuild.
+
+  These options allow you to disable this behavior and preserve unused imports, which can be useful if for example the imported file has useful side-effects. You should use `verbatimModuleSyntax` for this, as that replaces the older `importsNotUsedAsValues` and `preserveValueImports` settings (which TypeScript has now deprecated).
+
+- [`extends`](https://www.typescriptlang.org/tsconfig#extends)
+
+  This option allows you to split up your `tsconfig.json` file across multiple files. This value can be a string for single inheritance or an array for multiple inheritance (new in TypeScript 5.0+).
+
+All other `tsconfig.json` fields (i.e. those that aren't in the above list) will be ignored.
+
+#### You cannot use the `tsx` loader for `*.ts` files
+
+The `tsx` loader is not a superset of the`ts` loader. They are two different partially-incompatible syntaxes. For example, the character sequence `<a>1</a>/g` parses as `<a>(1 < (/a>/g))` with the ts loader and `(<a>1</a>) / g` with the `tsx` loader.
+
+The most common issue this causes is not being able to use generic type parameters on arrow function expressions such as `<T>() => {}` with the `tsx` loader. This is intentional, and matches the behavior of the official TypeScript compiler. That space in the `tsx` grammar is reserved for JSX elements.
