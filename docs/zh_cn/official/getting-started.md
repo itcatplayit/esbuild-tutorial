@@ -24,15 +24,15 @@ npm install --save-exact esbuild
 
 推荐的安装esbuild的方式是使用npm安装本地可执行程序。但如果你不想如此，可以尝试[其他安装方式](#other-ways-to-install)。
 
-## Your first bundle
+## 首个打包
 
-This is a quick real-world example of what esbuild is capable of and how to use it. First, install the `react` and `react-dom` packages:
+这是一个关于esbuild有什么功能和怎么用的快速上手例子。首先，安装`react`和`react-dom`包：
 
 ```:no-line-numbers
 npm install react react-dom
 ```
 
-Then create a file called `app.jsx` containing the following code:
+然后新建一个名为`app.jsx`的文件，内容如下：
 
 ```js
 import * as React from 'react'
@@ -42,7 +42,7 @@ let Greet = () => <h1>Hello, world!</h1>
 console.log(Server.renderToString(<Greet />))
 ```
 
-Finally, tell esbuild to bundle the file:
+最后，告诉esbuild来打包文件：
 
 ::: code-group
 
@@ -56,13 +56,13 @@ Finally, tell esbuild to bundle the file:
 
 :::
 
-This should have created a file called `out.js` containing your code and the React library bundled together. The code is completely self-contained and no longer depends on your `node_modules` directory. If you run the code using `node out.js`, you should see something like this:
+这将会生成一个名叫`out.js`包含你的代码和React库捆绑一起的文件。文件内容完全包含所有，不再依赖于`node_modules`目录。如果使用`node out.js`运行，可得类似如下内容：
 
 ```html:no-line-numbers
 <h1 data-reactroot="">Hello, world!</h1>
 ```
 
-Notice that esbuild also converted JSX syntax to JavaScript without any configuration other than the `.jsx` extension. While esbuild can be configured, it attempts to have reasonable defaults so that many common situations work automatically. If you would like to use JSX syntax in `.js` files instead, you can tell esbuild to allow this using the `--loader:.js=jsx` flag. You can read more about the available configuration options in the [API documentation](./official/api).
+注意到esbuild也可以转化JSX语法到JavaScreipt，仅用`.jsx`扩展，不需任何其他配置。虽然esbuild可以进行配置，但它会尝试使用合理的默认值，以便在许多常见情况下自动工作。如果想在`.js`文件中使用JSX语法，可以使用`--loader:.js=jsx`标志告诉esbuild。在[API文档]((./official/api))中查看更多可用配置选项的内容。
 
 ## Build scripts
 
