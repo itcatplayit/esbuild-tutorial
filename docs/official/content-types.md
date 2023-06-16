@@ -334,3 +334,184 @@ All other `tsconfig.json` fields (i.e. those that aren't in the above list) will
 The `tsx` loader is not a superset of the`ts` loader. They are two different partially-incompatible syntaxes. For example, the character sequence `<a>1</a>/g` parses as `<a>(1 < (/a>/g))` with the ts loader and `(<a>1</a>) / g` with the `tsx` loader.
 
 The most common issue this causes is not being able to use generic type parameters on arrow function expressions such as `<T>() => {}` with the `tsx` loader. This is intentional, and matches the behavior of the official TypeScript compiler. That space in the `tsx` grammar is reserved for JSX elements.
+
+## JSX
+
+Loader: `jsx` or `tsx`
+
+[JSX](https://facebook.github.io/jsx/) is an XML-like syntax extension for JavaScript that was created for [React](https://github.com/facebook/react). It's intended to be converted into normal JavaScript by your build tool. Each XML element becomes a normal JavaScript function call. For example, the following JSX code:
+
+```js
+import Button from './button'
+let button = <Button>Click me</Button>
+render(button)
+```
+
+Will be converted to the following JavaScript code:
+
+```js
+import Button from "./button";
+let button = React.createElement(Button, null, "Click me");
+render(button);
+```
+
+This loader is enabled by default for `.jsx` and `.tsx` files. Note that JSX syntax is not enabled in `.js` files by default. If you would like to enable that, you will need to configure it:
+
+::: code-group
+
+```bash [CLI]
+esbuild app.js --bundle --loader:.js=jsx
+```
+
+```js [JS]
+require('esbuild').buildSync({
+  entryPoints: ['app.js'],
+  bundle: true,
+  loader: { '.js': 'jsx' },
+  outfile: 'out.js',
+})
+```
+
+```go [Go]
+package main
+
+import "github.com/evanw/esbuild/pkg/api"
+import "os"
+
+func main() {
+  result := api.Build(api.BuildOptions{
+    EntryPoints: []string{"app.js"},
+    Bundle:      true,
+    Loader: map[string]api.Loader{
+      ".js": api.LoaderJSX,
+    },
+    Write: true,
+  })
+
+  if len(result.Errors) > 0 {
+    os.Exit(1)
+  }
+}
+```
+
+:::
+
+### Auto-import for JSX
+
+Using JSX syntax usually requires you to manually import the JSX library you are using. For example, if you are using React, by default you will need to import React into each JSX file like this:
+
+```js
+import * as React from 'react'
+render(<div/>)
+```
+
+This is because the JSX transform turns JSX syntax into a call to `React.createElement` but it does not itself import anything, so the `React` variable is not automatically present.
+
+If you would like to avoid having to manually `import` your JSX library into each file, you may be able to do this by setting esbuild's [JSX](./api/#jsx) transform to `automatic`, which generates import statements for you. Keep in mind that this also completely changes how the JSX transform works, so it may break your code if you are using a JSX library that's not React. Doing that looks like this:
+
+::: code-group
+
+```bash [CLI]
+esbuild app.jsx --jsx=automatic
+```
+
+```js [JS]
+require('esbuild').buildSync({
+  entryPoints: ['app.jsx'],
+  jsx: 'automatic',
+  outfile: 'out.js',
+})
+```
+
+```go [Go]
+package main
+
+import "github.com/evanw/esbuild/pkg/api"
+import "os"
+
+func main() {
+  result := api.Build(api.BuildOptions{
+    EntryPoints: []string{"app.jsx"},
+    JSX:         api.JSXAutomatic,
+    Outfile:     "out.js",
+  })
+
+  if len(result.Errors) > 0 {
+    os.Exit(1)
+  }
+}
+```
+
+:::
+
+### Using JSX without React
+
+If you're using JSX with a library other than React (such as [Preact](https://preactjs.com/)), you'll likely need to configure the [JSX factory](./api/#jsx-factory) and [JSX fragment](./api/#jsx-fragment) settings since they default to `React.createElement` and `React.Fragment` respectively:
+
+::: code-group
+
+```bash [CLI]
+esbuild app.jsx --jsx-factory=h --jsx-fragment=Fragment
+```
+
+```js [JS]
+require('esbuild').buildSync({
+  entryPoints: ['app.jsx'],
+  jsxFactory: 'h',
+  jsxFragment: 'Fragment',
+  outfile: 'out.js',
+})
+```
+
+```go [Go]
+package main
+
+import "github.com/evanw/esbuild/pkg/api"
+import "os"
+
+func main() {
+  result := api.Build(api.BuildOptions{
+    EntryPoints: []string{"app.jsx"},
+    JSXFactory:  "h",
+    JSXFragment: "Fragment",
+    Write:       true,
+  })
+
+  if len(result.Errors) > 0 {
+    os.Exit(1)
+  }
+}
+```
+
+:::
+
+Alternatively, if you are using TypeScript, you can just configure JSX for TypeScript by adding this to your `tsconfig.json` file and esbuild should pick it up automatically without needing to be configured:
+
+```json
+{
+  "compilerOptions": {
+    "jsxFactory": "h",
+    "jsxFragmentFactory": "Fragment"
+  }
+}
+```
+
+You will also have to add `import {h, Fragment} from 'preact'` in files containing JSX syntax unless you use auto-importing as described above.
+
+## JSON
+
+Loader: `json`
+
+This loader is enabled by default for `.json` files. It parses the JSON file into a JavaScript object at build time and exports the object as the default export. Using it looks something like this:
+
+```js
+import object from './example.json'
+console.log(object)
+```
+
+In addition to the default export, there are also named exports for each top-level property in the JSON object. Importing a named export directly means esbuild can automatically remove unused parts of the JSON file from the bundle, leaving only the named exports that you actually used. For example, this code will only include the `version` field when bundled:
+
+```js
+import { version } from './package.json'
+console.log(version)
+```
