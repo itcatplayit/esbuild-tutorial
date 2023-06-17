@@ -64,9 +64,9 @@ console.log(Server.renderToString(<Greet />))
 
 注意到esbuild也可以转化JSX语法到JavaScreipt，仅用`.jsx`扩展，不需任何其他配置。虽然esbuild可以进行配置，但它会尝试使用合理的默认值，以便在许多常见情况下自动工作。如果想在`.js`文件中使用JSX语法，可以使用`--loader:.js=jsx`标志告诉esbuild。在[API文档]((./official/api))中查看更多可用配置选项的内容。
 
-## Build scripts
+## 构建脚本
 
-Your build command is something you will be running repeatedly, so you will want to automate it. A natural way of doing this is to add a build script to your `package.json` file like this:
+构建命令有时需要重复运行，因此可以将其自动化。一个自然的方式是在`package.json`文件中添加如下所示的构建脚本：
 
 ```json
 {
@@ -76,15 +76,15 @@ Your build command is something you will be running repeatedly, so you will want
 }
 ```
 
-Notice that this uses the `esbuild` command directly without a relative path. This works because everything in the `scripts` section is run with the `esbuild` command already in the path (as long as you have [installed the package](#install-esbuild)).
+注意这里`esbuild`命令没有相对路径。能运行是因为所有在`scripts`中定义的如上面的`esbuild`命令已经在路径上了（只要已经[安装了该包](#install-esbuild)）。
 
-The build script can be invoked like this:
+构建脚本可以被如下方式方式调用：
 
 ```:no-line-numbers
 npm run build
 ```
 
-However, using the command-line interface can become unwieldy if you need to pass many options to esbuild. For more sophisticated uses you will likely want to write a build script in JavaScript using esbuild's JavaScript API. That might look something like this (note that this code must be saved in a file with the `.mjs` extension because it uses the `import` keyword):
+然而，如果需要传递很多可选项给esbuild，使用命令行交互方式会变得很不便。对于更复杂的使用，需要用esbuild的JavaScript API接口写一个JavaScript构建脚本。大概方式如下（注意，这个代码需要以`.mjs`为文件名后缀，因为用的是`import`关键字）：
 
 ```js
 import * as esbuild from 'esbuild'
@@ -96,7 +96,7 @@ await esbuild.build({
 })
 ```
 
-The `build` function runs the esbuild executable in a child process and returns a promise that resolves when the build is complete. There is also a `buildSync` API that is not asynchronous, but the asynchronous API is better for build scripts because [plugins](./plugins) only work with the asynchronous API. You can read more about the configuration options for the build API in the [API documentation](./api).
+esbuild的`build`函数运行于一个子进程中，当构建完成时，返回一个结果。也有一个同步的名为`buildSync`的API接口。对于构建脚本，异步API更好，因为[插件](./plugins)仅工作于异步API。你可以在[API文档](./api)中查看更多关于配置选项的内容。
 
 ## Bundling for the browser
 
