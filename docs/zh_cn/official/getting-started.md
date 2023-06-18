@@ -98,9 +98,9 @@ await esbuild.build({
 
 esbuild的`build`函数运行于一个子进程中，当构建完成时，返回一个结果。也有一个同步的名为`buildSync`的API接口。对于构建脚本，异步API更好，因为[插件](./plugins)仅工作于异步API。你可以在[API文档](./api)中查看更多关于配置选项的内容。
 
-## Bundling for the browser
+## 打包成浏览器版
 
-The bundler outputs code for the browser by default, so no additional configuration is necessary to get started. For development builds you probably want to enable [source maps](./official/api#source-map) with `--sourcemap`, and for production builds you probably want to enable [minification](./official/api#minify) with `--minify`. You probably also want to configure the [target](./official/api#target) environment for the browsers you support so that JavaScript syntax which is too new will be transformed into older JavaScript syntax. All of that might looks something like this:
+打包器默认打包成浏览器可用的代码，所以不需要额外的配置。开发构建可以用`--sourcemap`启用[源码映射](./official/api#source-map)，生产环境构建可以用`--minify`启用[缩小包大小](./official/api#minify)。配置浏览器[目标](./official/api#target)环境，可以将JavaScript语法中的新语法转化成老语法。所有这些综合起来如下：
 
 ::: code-group
 ```:no-line-numbers [CLI]
@@ -149,16 +149,15 @@ func main() {
 ```
 :::
 
+有些npm包不支持运行在浏览器上。有时，您可以使用esbuild的配置选项来解决某些问题，并依然成功地打包。未定义的全局常量依然可以用简单的[define](./official/api#define)功能或是复杂场景中用[inject](./official/api#inject)功能。
 
-Some npm packages you want to use may not be designed to be run in the browser. Sometimes you can use esbuild's configuration options to work around certain issues and successfully bundle the package anyway. Undefined globals can be replaced with either the [define](./official/api#define) feature in simple cases or the [inject](./official/api#inject) feature in more complex cases.
+## 打包成node版
 
-## Bundling for node
+尽管当用node时，打包器可能不是必须的，但在node中运行前用esbuild处理一下代码还是有好处的。打包会自动去掉TypeScript类型，转化ECMAScript模块语法成CommonJS，转译新的JavaScript语法成特定版本node的老语法。发布包前打包项目是有益处的，可以使包更小，从而加载时从文件系统读取花费更少的时间。
 
-Even though a bundler is not necessary when using node, sometimes it can still be beneficial to process your code with esbuild before running it in node. Bundling can automatically strip TypeScript types, convert ECMAScript module syntax to CommonJS, and transform newer JavaScript syntax into older syntax for a specific version of node. And it may be beneficial to bundle your package before publishing it so that it's a smaller download and so it spends less time reading from the file system when being loaded.
+如果要打包代码成能运行在node端，需要通过传递`--platform=node`给esbuild来配置[平台](./official/api#platform)。这同时将一些不同的设置更改为node友好的默认值。例如，所有node内建的包，如fs，会自动标记为外部的，从而esbuild不会打包他们。这个配置会使`package.json`中的browser字段失效。
 
-If you are bundling code that will be run in node, you should configure the [platform](./official/api#platform) setting by passing `--platform=node` to esbuild. This simultaneously changes a few different settings to node-friendly default values. For example, all packages that are built-in to node such as fs are automatically marked as external so esbuild doesn't try to bundle them. This setting also disables the interpretation of the browser field in `package.json`.
-
-If your code uses newer JavaScript syntax that doesn't work in your version of node, you will want to configure the [target](./official/api#target) version of node:
+如果代码中使用了新的JavaScript语法，从而使得某个node版本不能工作，可以配置[目标](./official/api#target)node版本：
 
 ::: code-group
 ```:no-line-numbers [CLI]
@@ -201,7 +200,7 @@ func main() {
 ```
 :::
 
-You also may not want to bundle your dependencies with esbuild. There are many node-specific features that esbuild doesn't support while bundling such as `__dirname`, `import.meta.url`, `fs.readFileSync`, and `*.node` native binary modules. You can exclude all of your dependencies from the bundle by setting [packages](./official/api#packages) to external:
+有些依赖包不需要打包。有很多特定node的功能，诸如`__dirname`、`import.meta.url`、`fs.readFileSync`和`*.node`原生二进制包，esbuild打包时不支持。可以排除所有的依赖包，通过配置[packages](./official/api#packages)外部化：
 
 ::: code-group
 ```:no-line-numbers [CLI]
@@ -240,7 +239,7 @@ func main() {
 ```
 :::
 
-If you do this, your dependencies must still be present on the file system at run-time since they are no longer included in the bundle.
+如若此配置，依赖包依然需要在运行时在文件系统中，即便他们已经不包含在打包中。
 
 ## Simultaneous platforms
 
