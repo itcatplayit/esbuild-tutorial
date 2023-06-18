@@ -687,3 +687,347 @@ This loader is enabled by default for `.txt` files. It loads the file as a strin
 import string from './example.txt'
 console.log(string)
 ```
+
+## Binary
+
+Loader: `binary`
+
+This loader will load the file as a binary buffer at build time and embed it into the bundle using Base64 encoding. The original bytes of the file are decoded from Base64 at run time and exported as a `Uint8Array` using the default export. Using it looks like this:
+
+```js
+import uint8array from './example.data'
+console.log(uint8array)
+```
+
+If you need an `ArrayBuffer` instead, you can just access `uint8array.buffer`. Note that this loader is not enabled by default. You will need to configure it for the appropriate file extension like this:
+
+::: code-group
+
+```bash [CLI]
+esbuild app.js --bundle --loader:.data=binary
+```
+
+```js [JS]
+require('esbuild').buildSync({
+  entryPoints: ['app.js'],
+  bundle: true,
+  loader: { '.data': 'binary' },
+  outfile: 'out.js',
+})
+```
+
+```go [Go]
+package main
+
+import "github.com/evanw/esbuild/pkg/api"
+import "os"
+
+func main() {
+  result := api.Build(api.BuildOptions{
+    EntryPoints: []string{"app.js"},
+    Bundle:      true,
+    Loader: map[string]api.Loader{
+      ".data": api.LoaderBinary,
+    },
+    Write: true,
+  })
+
+  if len(result.Errors) > 0 {
+    os.Exit(1)
+  }
+}
+```
+
+:::
+
+## Base64
+
+Loader: `base64`
+
+This loader will load the file as a binary buffer at build time and embed it into the bundle as a string using Base64 encoding. This string is exported using the default export. Using it looks like this:
+
+```js
+import base64string from './example.data'
+console.log(base64string)
+```
+
+Note that this loader is not enabled by default. You will need to configure it for the appropriate file extension like this:
+
+::: code-group
+
+```bash [CLI]
+esbuild app.js --bundle --loader:.data=base64
+```
+
+```js [JS]
+require('esbuild').buildSync({
+  entryPoints: ['app.js'],
+  bundle: true,
+  loader: { '.data': 'base64' },
+  outfile: 'out.js',
+})
+```
+
+```go [Go]
+package main
+
+import "github.com/evanw/esbuild/pkg/api"
+import "os"
+
+func main() {
+  result := api.Build(api.BuildOptions{
+    EntryPoints: []string{"app.js"},
+    Bundle:      true,
+    Loader: map[string]api.Loader{
+      ".data": api.LoaderBase64,
+    },
+    Write: true,
+  })
+
+  if len(result.Errors) > 0 {
+    os.Exit(1)
+  }
+}
+```
+
+:::
+
+
+If you intend to turn this into a `Uint8Array` or an `ArrayBuffer`, you should use the binary loader instead. It uses an optimized Base64-to-binary converter that is faster than the usual atob conversion process.
+
+## Data URL
+
+Loader: `dataurl`
+
+This loader will load the file as a binary buffer at build time and embed it into the bundle as a Base64-encoded data URL. This string is exported using the default export. Using it looks like this:
+
+```js
+import url from './example.png'
+let image = new Image
+image.src = url
+document.body.appendChild(image)
+```
+
+The data URL includes a best guess at the MIME type based on the file extension and/or the file contents, and will look something like this for binary data:
+
+```
+data:image/png;base64,iVBORw0KGgo=
+```
+
+...or like this for textual data:
+
+```
+data:image/svg+xml,<svg></svg>%0A
+```
+
+Note that this loader is not enabled by default. You will need to configure it for the appropriate file extension like this:
+
+::: code-group
+
+```bash [CLI]
+esbuild app.js --bundle --loader:.png=dataurl
+```
+
+```js [JS]
+require('esbuild').buildSync({
+  entryPoints: ['app.js'],
+  bundle: true,
+  loader: { '.png': 'dataurl' },
+  outfile: 'out.js',
+})
+```
+
+```go [Go]
+package main
+
+import "github.com/evanw/esbuild/pkg/api"
+import "os"
+
+func main() {
+  result := api.Build(api.BuildOptions{
+    EntryPoints: []string{"app.js"},
+    Bundle:      true,
+    Loader: map[string]api.Loader{
+      ".png": api.LoaderDataURL,
+    },
+    Write: true,
+  })
+
+  if len(result.Errors) > 0 {
+    os.Exit(1)
+  }
+}
+```
+
+:::
+
+## External file
+
+There are two different loaders that can be used for external files depending on the behavior you're looking for. Both loaders are described below:
+
+#### The `file` loader
+
+Loader: `file`
+
+This loader will copy the file to the output directory and embed the file name into the bundle as a string. This string is exported using the default export. Using it looks like this:
+
+```js
+import url from './example.png'
+let image = new Image
+image.src = url
+document.body.appendChild(image)
+```
+
+This behavior is intentionally similar to Webpack's [`file-loader`](https://v4.webpack.js.org/loaders/file-loader/) package. Note that this loader is not enabled by default. You will need to configure it for the appropriate file extension like this:
+
+::: code-group
+
+```bash [CLI]
+esbuild app.js --bundle --loader:.png=file --outdir=out
+```
+
+```js [JS]
+require('esbuild').buildSync({
+  entryPoints: ['app.js'],
+  bundle: true,
+  loader: { '.png': 'file' },
+  outdir: 'out',
+})
+```
+
+```go [Go]
+package main
+
+import "github.com/evanw/esbuild/pkg/api"
+import "os"
+
+func main() {
+  result := api.Build(api.BuildOptions{
+    EntryPoints: []string{"app.js"},
+    Bundle:      true,
+    Loader: map[string]api.Loader{
+      ".png": api.LoaderFile,
+    },
+    Outdir: "out",
+    Write:  true,
+  })
+
+  if len(result.Errors) > 0 {
+    os.Exit(1)
+  }
+}
+```
+
+:::
+
+By default the exported string is just the file name. If you would like to prepend a base path to the exported string, this can be done with the [public path](./api/#public-path) API option.
+
+#### The `copy` loader
+
+Loader: `copy`
+
+This loader will copy the file to the output directory and rewrite the import path to point to the copied file. This means the import will still exist in the final bundle and the final bundle will still reference the file instead of including the file inside the bundle. This might be useful if you are running additional bundling tools on esbuild's output, if you want to omit a rarely-used data file from the bundle for faster startup performance, or if you want to rely on specific behavior of your runtime that's triggered by an import. For example:
+
+```js
+import json from './example.json' assert { type: 'json' }
+console.log(json)
+```
+
+If you bundle the above code with the following command:
+
+::: code-group
+
+```bash [CLI]
+esbuild app.js --bundle --loader:.json=copy --outdir=out --format=esm
+```
+
+```js [JS]
+require('esbuild').buildSync({
+  entryPoints: ['app.js'],
+  bundle: true,
+  loader: { '.json': 'copy' },
+  outdir: 'out',
+  format: 'esm',
+})
+```
+
+```go [Go]
+package main
+
+import "github.com/evanw/esbuild/pkg/api"
+import "os"
+
+func main() {
+  result := api.Build(api.BuildOptions{
+    EntryPoints: []string{"app.js"},
+    Bundle:      true,
+    Loader: map[string]api.Loader{
+      ".json": api.LoaderCopy,
+    },
+    Outdir: "out",
+    Write:  true,
+    Format: api.FormatESModule,
+  })
+
+  if len(result.Errors) > 0 {
+    os.Exit(1)
+  }
+}
+```
+
+:::
+
+the resulting out/app.js file might look something like this:
+
+```js
+// app.js
+import json from "./example-PVCBWCM4.json" assert { type: "json" };
+console.log(json);
+```
+
+Notice how the import path has been rewritten to point to the copied file `out/example-PVCBWCM4.json` (a content hash has been added due to the default value of the [asset names](./api/#asset-names) setting), and how the [import assertion](https://v8.dev/features/import-assertions) for JSON has been kept so the runtime will be able to load the JSON file.
+
+## Empty file
+
+Loader: `empty`
+
+This loader tells tells esbuild to pretend that a file is empty. It can be a helpful way to remove content from your bundle in certain situations. For example, you can configure `.css` files to load with `empty` to prevent esbuild from bundling CSS files that are imported into JavaScript files:
+
+::: code-group
+
+```bash [CLI]
+esbuild app.js --bundle --loader:.css=empty
+```
+
+```js [JS]
+require('esbuild').buildSync({
+  entryPoints: ['app.js'],
+  bundle: true,
+  loader: { '.css': 'empty' },
+})
+```
+
+```go [Go]
+package main
+
+import "github.com/evanw/esbuild/pkg/api"
+import "os"
+
+func main() {
+  result := api.Build(api.BuildOptions{
+    EntryPoints: []string{"app.js"},
+    Bundle:      true,
+    Loader: map[string]api.Loader{
+      ".css": api.LoaderEmpty,
+    },
+  })
+
+  if len(result.Errors) > 0 {
+    os.Exit(1)
+  }
+}
+```
+
+:::
+
+This loader also lets you remove imported assets from CSS files. For example, you can configure `.png` files to load with `empty` so that references to `.png` files in CSS code such as `url(image.png)` are replaced with `url()`.
