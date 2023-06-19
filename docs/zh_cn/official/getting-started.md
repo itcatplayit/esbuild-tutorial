@@ -62,7 +62,7 @@ console.log(Server.renderToString(<Greet />))
 <h1 data-reactroot="">Hello, world!</h1>
 ```
 
-注意到esbuild也可以转化JSX语法到JavaScreipt，仅用`.jsx`扩展，不需任何其他配置。虽然esbuild可以进行配置，但它会尝试使用合理的默认值，以便在许多常见情况下自动工作。如果想在`.js`文件中使用JSX语法，可以使用`--loader:.js=jsx`标志告诉esbuild。在[API文档]((./official/api))中查看更多可用配置选项的内容。
+注意到esbuild也可以转化JSX语法到JavaScreipt，仅用`.jsx`扩展，不需任何其他配置。虽然esbuild可以进行配置，但它会尝试使用合理的默认值，以便在许多常见情况下自动工作。如果想在`.js`文件中使用JSX语法，可以使用`--loader:.js=jsx`标志告诉esbuild。在[API文档]((./api))中查看更多可用配置选项的内容。
 
 ## 构建脚本
 
@@ -100,7 +100,7 @@ esbuild的`build`函数运行于一个子进程中，当构建完成时，返回
 
 ## 打包成浏览器版
 
-打包器默认打包成浏览器可用的代码，所以不需要额外的配置。开发构建可以用`--sourcemap`启用[源码映射](./official/api#source-map)，生产环境构建可以用`--minify`启用[缩小包大小](./official/api#minify)。配置浏览器[目标](./official/api#target)环境，可以将JavaScript语法中的新语法转化成老语法。所有这些综合起来如下：
+打包器默认打包成浏览器可用的代码，所以不需要额外的配置。开发构建可以用`--sourcemap`启用[源码映射](./api#source-map)，生产环境构建可以用`--minify`启用[缩小包大小](./api#minify)。配置浏览器[目标](./api#target)环境，可以将JavaScript语法中的新语法转化成老语法。所有这些综合起来如下：
 
 ::: code-group
 ```:no-line-numbers [CLI]
@@ -149,15 +149,15 @@ func main() {
 ```
 :::
 
-有些npm包不支持运行在浏览器上。有时，您可以使用esbuild的配置选项来解决某些问题，并依然成功地打包。未定义的全局常量依然可以用简单的[define](./official/api#define)功能或是复杂场景中用[inject](./official/api#inject)功能。
+有些npm包不支持运行在浏览器上。有时，您可以使用esbuild的配置选项来解决某些问题，并依然成功地打包。未定义的全局常量依然可以用简单的[define](./api#define)功能或是复杂场景中用[inject](./api#inject)功能。
 
 ## 打包成node版
 
 尽管当用node时，打包器可能不是必须的，但在node中运行前用esbuild处理一下代码还是有好处的。打包会自动去掉TypeScript类型，转化ECMAScript模块语法成CommonJS，转译新的JavaScript语法成特定版本node的老语法。发布包前打包项目是有益处的，可以使包更小，从而加载时从文件系统读取花费更少的时间。
 
-如果要打包代码成能运行在node端，需要通过传递`--platform=node`给esbuild来配置[平台](./official/api#platform)。这同时将一些不同的设置更改为node友好的默认值。例如，所有node内建的包，如fs，会自动标记为外部的，从而esbuild不会打包他们。这个配置会使`package.json`中的browser字段失效。
+如果要打包代码成能运行在node端，需要通过传递`--platform=node`给esbuild来配置[平台](./api#platform)。这同时将一些不同的设置更改为node友好的默认值。例如，所有node内建的包，如fs，会自动标记为外部的，从而esbuild不会打包他们。这个配置会使`package.json`中的browser字段失效。
 
-如果代码中使用了新的JavaScript语法，从而使得某个node版本不能工作，可以配置[目标](./official/api#target)node版本：
+如果代码中使用了新的JavaScript语法，从而使得某个node版本不能工作，可以配置[目标](./api#target)node版本：
 
 ::: code-group
 ```:no-line-numbers [CLI]
@@ -200,7 +200,7 @@ func main() {
 ```
 :::
 
-有些依赖包不需要打包。有很多特定node的功能，诸如`__dirname`、`import.meta.url`、`fs.readFileSync`和`*.node`原生二进制包，esbuild打包时不支持。可以排除所有的依赖包，通过配置[packages](./official/api#packages)外部化：
+有些依赖包不需要打包。有很多特定node的功能，诸如`__dirname`、`import.meta.url`、`fs.readFileSync`和`*.node`原生二进制包，esbuild打包时不支持。可以排除所有的依赖包，通过配置[packages](./api#packages)外部化：
 
 ::: code-group
 ```:no-line-numbers [CLI]
@@ -240,26 +240,26 @@ func main() {
 :::
 
 如若此配置，依赖包依然需要在运行时在文件系统中，即便他们已经不包含在打包中。
+没有装esbuild
+## 同步平台
 
-## Simultaneous platforms
+在一个操作系统，拷贝`node_modules`目录到另一个操作系统上，而不重新安装，然后在这个另一个操作系统上运行esbuild，这是不行的。不能工作的原因是因为esbuild用原生代码实现，需要安装一个平台特制的二进制可执行文件。正常来说，这不是一个错误，因为往往检测到`package.json`文件归入版本控制，而不是`node_modules`目录，本地克隆下来仓库后，通常运行`npm install`。
 
-You cannot install esbuild on one OS, copy the `node_modules` directory to another OS without reinstalling, and then run esbuild on that other OS. This won't work because esbuild is written with native code and needs to install a platform-specific binary executable. Normally this isn't an issue because you typically check your `package.json` file into version control, not your `node_modules` directory, and then everyone runs `npm install` on their local machine after cloning the repository.
+然而，有时有这样的场景，在Windows或macOS上安装了esbuild，拷贝`node_modules`目录到一个运行在Linux的[Docker](https://www.docker.com/)镜像，或在Windows和[WSL](https://docs.microsoft.com/en-us/windows/wsl/)环境间拷贝`node_modules`目录。这种情况能不能工作取决于包管理器：
 
-However, people sometimes get into this situation by installing esbuild on Windows or macOS and copying their `node_modules` directory into a [Docker](https://www.docker.com/) image that runs Linux, or by copying their `node_modules` directory between Windows and [WSL](https://docs.microsoft.com/en-us/windows/wsl/) environments. The way to get this to work depends on your package manager:
+- **npm/pnpm**：如果用npm或pnpm安装的，不能拷贝`node_modules`目录，然后在目标平台上运行`npm ci`或`npm install`来达到目的。可以考虑使用内建了在多个平台同步功能的[Yarn](https://yarnpkg.com/)来替代。
 
-- **npm/pnpm**: If you are installing with npm or pnpm, you can try not copying the `node_modules` directory when you copy the files over, and running `npm ci` or `npm install` on the destination platform after the copy. Or you could consider using [Yarn](https://yarnpkg.com/) instead which has built-in support for installing a package on multiple platforms simultaneously.
+- **Yarn**：如果用Yarn安装，可以在`.yarnrc.yml`文件中使用[`supportedArchitectures` 功能](https://yarnpkg.com/configuration/yarnrc/#supportedArchitectures)列出当前平台和其他平台。这也意味着文件系统上会存在有多个esbuild的拷贝。
 
-- **Yarn**: If you are installing with Yarn, you can try listing both this platform and the other platform in your `.yarnrc.yml` file using the [`supportedArchitectures` feature](https://yarnpkg.com/configuration/yarnrc/#supportedArchitectures). Keep in mind that this means multiple copies of esbuild will be present on the file system.
+也可能有这么种场景，在一个ARM处理器的macOS电脑上用ARM版本的npm安装esbuild，但esbuild运行在一个内部是[Rosetta](https://en.wikipedia.org/wiki/Rosetta_(software))的x86-64版本的node上。这种情况，一个简单的解决方案是，使用ARM版本的node来运行代码，这个版本安装地址：[https://nodejs.org/en/download/](https://nodejs.org/en/download/)。
 
-You can also get into this situation on a macOS computer with an ARM processor if you install esbuild using the ARM version of npm but then try to run esbuild with the x86-64 version of node running inside of [Rosetta](https://en.wikipedia.org/wiki/Rosetta_(software)). In that case, an easy fix is to run your code using the ARM version of node instead, which can be downloaded here: [https://nodejs.org/en/download/](https://nodejs.org/en/download/).
+另外一个处理方案是[使用`esbuild-wasm`包](./getting-started/#wasm)，它能以同样的方式在所有的平台上运行。但这会导致一个很大的性能花销，通常10倍慢于`esbuild`包，所以可能不是你想要的。
 
-Another alternative is to [use the `esbuild-wasm` package instead](./official/getting-started/#wasm), which works the same way on all platforms. But it comes with a heavy performance cost and can sometimes be 10x slower than the `esbuild` package, so you may also not want to do that.
+## 使用Yarn的Plug'n'Play
 
-## Using Yarn Plug'n'Play
+Yarn的[Plug'n'Play](https://yarnpkg.com/features/pnp/)包安装策略是被esbuild原生支持的。要用它，确保运行esbuild在包含Yarn的生成包清单JavaScript文件（要么是`.pnp.cjs`，要么为`.pnp.js`）的[当前工作目录](./api/#working-directory) 下。如果Yarn的Plug'n'Play包清单被检测到，esbuild将自动解析包引入到Yarn的包缓存的路径中的`.zip`文件，在打包中将自动提取这些文件。
 
-Yarn's [Plug'n'Play](https://yarnpkg.com/features/pnp/) package installation strategy is supported natively by esbuild. To use it, make sure you are running esbuild such that the [current working directory](./official/api/#working-directory) contains Yarn's generated package manifest JavaScript file (either `.pnp.cjs` or `.pnp.js`). If a Yarn Plug'n'Play package manifest is detected, esbuild will automatically resolve package imports to paths inside the `.zip` files in Yarn's package cache, and will automatically extract these files on the fly during bundling.
-
-Because esbuild is written in Go, support for Yarn Plug'n'Play has been completely re-implemented in Go instead of relying on Yarn's JavaScript API. This allows Yarn Plug'n'Play package resolution to integrate well with esbuild's fully parallelized bundling pipeline for maximum speed. Note that Yarn's command-line interface adds a lot of unavoidable performance overhead to every command. For maximum esbuild performance, you may want to consider running esbuild without using Yarn's CLI (i.e. not using yarn esbuild). This can result in esbuild running 10x faster.
+因为esbuild是用Go写的，支持Yarn的Plug'n'Play，已经完全用Go重写，以替代依赖于Yarn的JavaScript API。这使得Yarn Plug'n'Play包解析能够与esbuild的完全并行打包管道很好地集成，以获得最大速度。注意，Yarn的命令行接口为每个命令添加了许多不可避免的性能开销。为了实现最大的esbuild性能，可以考虑用esbuild不带Yarn的CLI（也就是不用yarn esbuild）。这能使esbuild运行10倍快。
 
 ## Other ways to install
 
@@ -322,7 +322,7 @@ The native executable in the `@esbuild/darwin-x64` package is for the macOS oper
 | [@esbuild/win32-ia32](https://www.npmjs.org/package/@esbuild/win32-ia32) | `win32` | `ia32` | [:arrow_down:](https://registry.npmjs.org/@esbuild/win32-ia32/-/win32-ia32-0.17.18.tgz) |
 | [@esbuild/win32-x64](https://www.npmjs.org/package/@esbuild/win32-x64) | `win32` | `x64` | [:arrow_down:](https://registry.npmjs.org/@esbuild/win32-x64/-/win32-x64-0.17.18.tgz) |
 
-**Why this is not recommended**: This approach only works on Unix systems that can run shell scripts, so it will require [WSL](https://learn.microsoft.com/en-us/windows/wsl/) on Windows. An additional drawback is that you cannot use [plugins](./official/plugins/) with the native version of esbuild.
+**Why this is not recommended**: This approach only works on Unix systems that can run shell scripts, so it will require [WSL](https://learn.microsoft.com/en-us/windows/wsl/) on Windows. An additional drawback is that you cannot use [plugins](./plugins/) with the native version of esbuild.
 
 If you choose to write your own code to download esbuild directly from npm, then you are relying on internal implementation details of esbuild's native executable installer. These details may change at some point, in which case this approach will no longer work for new esbuild versions. This is only a minor drawback though since the approach should still work forever for existing esbuild versions (packages published to npm are immutable).
 
@@ -339,7 +339,7 @@ In addition to the `esbuild` npm package, there is also an `esbuild-wasm` packag
 npm install --save-exact esbuild-wasm
 ```
 
-**Why this is not recommended**: The WebAssembly version is much, much slower than the native version. In many cases it is an order of magnitude (i.e. 10x) slower. This is for various reasons including a) node re-compiles the WebAssembly code from scratch on every run, b) Go's WebAssembly compilation approach is single-threaded, and c) node has WebAssembly bugs that can delay the exiting of the process by many seconds. The WebAssembly version also excludes some features such as the local file server. You should only use the WebAssembly package like this if there is no other option, such as when you want to use esbuild on an unsupported platform. The WebAssembly package is primarily intended to only be used [in the browser](./official/api#browser).
+**Why this is not recommended**: The WebAssembly version is much, much slower than the native version. In many cases it is an order of magnitude (i.e. 10x) slower. This is for various reasons including a) node re-compiles the WebAssembly code from scratch on every run, b) Go's WebAssembly compilation approach is single-threaded, and c) node has WebAssembly bugs that can delay the exiting of the process by many seconds. The WebAssembly version also excludes some features such as the local file server. You should only use the WebAssembly package like this if there is no other option, such as when you want to use esbuild on an unsupported platform. The WebAssembly package is primarily intended to only be used [in the browser](./api#browser).
 
 ### Deno instead of node
 
@@ -396,4 +396,4 @@ If you want to build for other platforms, you can just prefix the build command 
 GOOS=linux GOARCH=386 go build ./cmd/esbuild
 ```
 
-**Why this is not recommended**: The native version can only be used via the command-line interface, which can be unergonomic for complex use cases and which does not support [plugins](./official/plugins). You will need to write JavaScript or Go code and use [esbuild's API](./official/api) to use plugins.
+**Why this is not recommended**: The native version can only be used via the command-line interface, which can be unergonomic for complex use cases and which does not support [plugins](./plugins). You will need to write JavaScript or Go code and use [esbuild's API](./api) to use plugins.
