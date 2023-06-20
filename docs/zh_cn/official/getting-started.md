@@ -261,27 +261,27 @@ Yarn的[Plug'n'Play](https://yarnpkg.com/features/pnp/)包安装策略是被esbu
 
 因为esbuild是用Go写的，支持Yarn的Plug'n'Play，已经完全用Go重写，以替代依赖于Yarn的JavaScript API。这使得Yarn Plug'n'Play包解析能够与esbuild的完全并行打包管道很好地集成，以获得最大速度。注意，Yarn的命令行接口为每个命令添加了许多不可避免的性能开销。为了实现最大的esbuild性能，可以考虑用esbuild不带Yarn的CLI（也就是不用yarn esbuild）。这能使esbuild运行10倍快。
 
-## Other ways to install
+## 其他安装方法
 
-The recommended way to install esbuild is to [install the native executable using npm](#install-esbuild). But you can also install esbuild in these ways:
+安装esbuild的推荐方式为[使用npm安装本地可执行文件](#install-esbuild)。也还有其他安装方式：
 
-### Download a build
+### 下载构建版
 
-If you have a Unix system, you can use the following command to download the `esbuild` binary executable for your current platform (it will be downloaded to the current working directory):
+如果是在Unix系统，可以使用下面的命令为你当前的平台（它将安装在当前工作目录下）下载`esbuild`二进制可执行文件：
 
 ```:no-line-numbers
 curl -fsSL https://esbuild.github.io/dl/v0.17.18 | sh
 ```
 
-You can also use `latest` instead of the version number to download the most recent version of esbuild:
+可以用`latest`替代版本数字来下载最近的esbuild版本：
 
 ```:no-line-numbers
 curl -fsSL https://esbuild.github.io/dl/latest | sh
 ```
 
-If you don't want to evaluate a shell script from the internet to download esbuild, you can also manually download the package from npm yourself instead (which is all the above shell script is doing). Although the precompiled native executables are hosted using npm, you don't actually need npm installed to download them. The npm package registry is a normal HTTP server and packages are normal gzipped tar files.
+如果不想通过shell脚本从网上下载esbuild，可以手动从npm手动下载包（也就是上面shell脚本做的事）。尽管预编译的本地可执行文件是使用npm托管的，但下载它们实际上并不需要安装npm。npm包注册中心是一个通常的HTTP服务器，包也是通常的压缩tar文件。
 
-Here is an example of downloading a binary executable directly:
+下面是一个直接下载二进制可执行文件的例子：
 
 ```bash $(1,3,5)
 curl -O https://registry.npmjs.org/@esbuild/darwin-x64/-/darwin-x64-0.17.18.tgz
@@ -295,9 +295,9 @@ Usage:
 ...
 ```
 
-The native executable in the `@esbuild/darwin-x64` package is for the macOS operating system and the 64-bit Intel architecture. As of writing, this is the full list of native executable packages for the platforms esbuild supports:
+在`@esbuild/darwin-x64`包中的原生可执行文件是为macOS操作系统和64位Intel架构的。下面列出了esbuild支持的平台的所有原生可执行文件包：
 
-| Package name | OS | Architecture | Download |
+| 包名 | 操作系统 | 架构 | 下载 |
 | -------- | :------: | -----------: | -----: |
 | [@esbuild/android-arm](https://www.npmjs.org/package/@esbuild/android-arm) | `android` | `arm` | [:arrow_down:](https://registry.npmjs.org/@esbuild/android-arm/-/android-arm-0.17.18.tgz) |
 | [@esbuild/android-arm64](https://www.npmjs.org/package/@esbuild/android-arm64) | `android` | `arm64` | [:arrow_down:](https://registry.npmjs.org/@esbuild/android-arm64/-/android-arm64-0.17.18.tgz) |
@@ -322,13 +322,13 @@ The native executable in the `@esbuild/darwin-x64` package is for the macOS oper
 | [@esbuild/win32-ia32](https://www.npmjs.org/package/@esbuild/win32-ia32) | `win32` | `ia32` | [:arrow_down:](https://registry.npmjs.org/@esbuild/win32-ia32/-/win32-ia32-0.17.18.tgz) |
 | [@esbuild/win32-x64](https://www.npmjs.org/package/@esbuild/win32-x64) | `win32` | `x64` | [:arrow_down:](https://registry.npmjs.org/@esbuild/win32-x64/-/win32-x64-0.17.18.tgz) |
 
-**Why this is not recommended**: This approach only works on Unix systems that can run shell scripts, so it will require [WSL](https://learn.microsoft.com/en-us/windows/wsl/) on Windows. An additional drawback is that you cannot use [plugins](./plugins/) with the native version of esbuild.
+**为什么不推荐这种方式**：这种方法只能工作在能运行shell脚本的Unix系统上，所以Windows系统上需要有[WSL](https://learn.microsoft.com/en-us/windows/wsl/)。一个附带的缺点是不能使用原生版的esbuild[插件](./plugins/)。
 
-If you choose to write your own code to download esbuild directly from npm, then you are relying on internal implementation details of esbuild's native executable installer. These details may change at some point, in which case this approach will no longer work for new esbuild versions. This is only a minor drawback though since the approach should still work forever for existing esbuild versions (packages published to npm are immutable).
+如果直接从npm选择编写自己的代码来下载esbuild，那么依赖esbuild的原生可执行安装包的网络实现细节。这些细节可能在某些点上有变化，也就是这种方法在新esbuild版可能不再工作。不过，这只是一个小缺点，因为该方法应该仍然适用于现有的esbuild版本（发布了的包是不会变的）。
 
-::: details 
-- ^1^ This operating system is not on [node's list of supported platforms](https://nodejs.org/api/process.html#process_process_platform)
-- ^2^ This architecture is not on [node's list of supported architectures](https://nodejs.org/api/process.html#processarch)
+::: 标注详情 
+- ^1^ 这个操作系统不在[node支持的平台列表中](https://nodejs.org/api/process.html#process_process_platform)
+- ^2^ 这个架构不在[node支持的架构列表中](https://nodejs.org/api/process.html#processarch)
 :::
 
 ### Install the WASM version
