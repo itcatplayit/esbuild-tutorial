@@ -448,3 +448,339 @@ type Location struct {
   For example, an on-resolve plugin might return a suffix of `?#iefix` for a `.eot` file in a build with a different on-load plugin for paths ending in `.eot`. Keeping the suffix separate means the suffix is still associated with the path but the `.eot` plugin will still match the file without needing to know anything about suffixes.
 
   If you do set a suffix, it must begin with either `?` or `#` because it's intended to be a URL query or hash. This feature has certain obscure uses such as hacking around bugs in IE8's CSS parser and may not be that useful otherwise. If you do use it, keep in mind that each unique namespace, path, and suffix combination is considered by esbuild to be a unique module identifier so by returning a different suffix for the same path, you are telling esbuild to create another copy of the module.
+
+## On-load callbacks
+
+A callback added using `onLoad` will be run for each unique path/namespace pair that has not been marked as external. Its job is to return the contents of the module and to tell esbuild how to interpret it. Here's an example plugin that converts `.txt` files into an array of words:
+
+::: code-group
+
+```js [JS]
+import * as esbuild from 'esbuild'
+import fs from 'node:fs'
+
+let exampleOnLoadPlugin = {
+  name: 'example',
+  setup(build) {
+    // Load ".txt" files and return an array of words
+    build.onLoad({ filter: /\.txt$/ }, async (args) => {
+      let text = await fs.promises.readFile(args.path, 'utf8')
+      return {
+        contents: JSON.stringify(text.split(/\s+/)),
+        loader: 'json',
+      }
+    })
+  },
+}
+
+await esbuild.build({
+  entryPoints: ['app.js'],
+  bundle: true,
+  outfile: 'out.js',
+  plugins: [exampleOnLoadPlugin],
+})
+```
+
+```go [Go]
+package main
+
+import "encoding/json"
+import "io/ioutil"
+import "os"
+import "strings"
+import "github.com/evanw/esbuild/pkg/api"
+
+var exampleOnLoadPlugin = api.Plugin{
+  Name: "example",
+  Setup: func(build api.PluginBuild) {
+    // Load ".txt" files and return an array of words
+    build.OnLoad(api.OnLoadOptions{Filter: `\.txt$`},
+      func(args api.OnLoadArgs) (api.OnLoadResult, error) {
+        text, err := ioutil.ReadFile(args.Path)
+        if err != nil {
+          return api.OnLoadResult{}, err
+        }
+        bytes, err := json.Marshal(strings.Fields(string(text)))
+        if err != nil {
+          return api.OnLoadResult{}, err
+        }
+        contents := string(bytes)
+        return api.OnLoadResult{
+          Contents: &contents,
+          Loader:   api.LoaderJSON,
+        }, nil
+      })
+  },
+}
+
+func main() {
+  result := api.Build(api.BuildOptions{
+    EntryPoints: []string{"app.js"},
+    Bundle:      true,
+    Outfile:     "out.js",
+    Plugins:     []api.Plugin{exampleOnLoadPlugin},
+    Write:       true,
+  })
+
+  if len(result.Errors) > 0 {
+    os.Exit(1)
+  }
+}
+```
+
+:::
+
+The callback can return without providing the contents of the module. In that case the responsibility for loading the module is passed to the next registered callback. For a given module, all `onLoad` callbacks from all plugins will be run in the order they were registered until one takes responsibility for loading the module. If no callback returns contents for the module, esbuild will run its default module loading logic.
+
+Keep in mind that many callbacks may be running concurrently. In JavaScript, if your callback does expensive work that can run on another thread such as `fs.readFileSync()`, you should make the callback `async` and use `await` (in this case with `fs.promises.readFile()`) to allow other code to run in the meantime. In Go, each callback may be run on a separate goroutine. Make sure you have appropriate synchronization in place if your plugin uses any shared data structures.
+
+### On-load options
+
+The `onLoad` API is meant to be called within the `setup` function and registers a callback to be triggered in certain situations. It takes a few options:
+
+::: code-group
+
+```js [JS]
+interface OnLoadOptions {
+  filter: RegExp;
+  namespace?: string;
+}
+```
+
+```go [Go]
+type OnLoadOptions struct {
+  Filter    string
+  Namespace string
+}
+```
+
+:::
+
+- `filter`
+
+  Every callback must provide a filter, which is a regular expression. The registered callback will be skipped when the path doesn't match this filter. You can read more about filters [here](./plugins/#filters).
+
+- `namespace`
+
+  This is optional. If provided, the callback is only run on paths within modules in the provided namespace. You can read more about namespaces [here](./plugins/#namespaces).
+
+### On-load arguments
+
+When esbuild calls the callback registered by `onLoad`, it will provide these arguments with information about the module to load:
+
+::: code-group
+
+```js [JS]
+interface OnLoadArgs {
+  path: string;
+  namespace: string;
+  suffix: string;
+  pluginData: any;
+}
+```
+
+```go [Go]
+type OnLoadArgs struct {
+  Path       string
+  Namespace  string
+  Suffix     string
+  PluginData interface{}
+}
+```
+
+:::
+
+- `path`
+
+  This is the fully-resolved path to the module. It should be considered a file system path if the namespace is `file`, but otherwise the path can take any form. For example, the sample [HTTP plugin](./plugins/#http-plugin) below gives special meaning to paths starting with `http://`.
+
+- `namespace`
+
+  This is the namespace that the module path is in, as set by the [on-resolve callback](./plugins/#on-resolve) that resolved this file. It defaults to the file namespace for modules loaded with esbuild's default behavior. You can read more about namespaces [here](./plugins/#namespaces).
+
+- `suffix`
+
+  This is the URL query and/or hash at the end of the file path, if there is one. It's either filled in by esbuild's native path resolution behavior or returned by the [on-resolve callback](./plugins/#on-resolve) that resolved this file. This is stored separately from the path so that most plugins can just deal with the path and ignore the suffix. The on-load behavior that's built into esbuild just ignores the suffix and loads the file from its path alone.
+
+  For context, IE8's CSS parser has a bug where it considers certain URLs to extend to the last ) instead of the first ). So the CSS code `url('Foo.eot') format('eot')` is incorrectly considered to have a URL of `Foo.eot') format('eot`. To avoid this, people typically add something like `?#iefix` so that IE8 sees the URL as `Foo.eot?#iefix') format('eot`. Then the path part of the URL is Foo.eot and the query part is `?#iefix') format('eot`, which means IE8 can find the file `Foo.eot` by discarding the query.
+
+  The suffix feature was added to esbuild to handle CSS files containing these hacks. A URL of `Foo.eot?#iefix` should be considered [external](./api/#external) if all files matching `*.eot` have been marked as external, but the `?#iefix` suffix should still be present in the final output file.
+
+- `pluginData`
+
+  This property is passed from the previous plugin, as set by the [on-resolve callback](./plugins/#on-resolve) that runs in the plugin chain.
+
+### On-load results
+
+This is the object that can be returned by a callback added using `onLoad` to provide the contents of a module. If you would like to return from the callback without providing any contents, just return the default value (so `undefined` in JavaScript and `OnLoadResult{}` in Go). Here are the optional properties that can be returned:
+
+::: code-group
+
+```js [JS]
+interface OnLoadResult {
+  contents?: string | Uint8Array;
+  errors?: Message[];
+  loader?: Loader;
+  pluginData?: any;
+  pluginName?: string;
+  resolveDir?: string;
+  warnings?: Message[];
+  watchDirs?: string[];
+  watchFiles?: string[];
+}
+
+interface Message {
+  text: string;
+  location: Location | null;
+  detail: any; // The original error from a JavaScript plugin, if applicable
+}
+
+interface Location {
+  file: string;
+  namespace: string;
+  line: number; // 1-based
+  column: number; // 0-based, in bytes
+  length: number; // in bytes
+  lineText: string;
+}
+```
+
+```go [Go]
+type OnLoadResult struct {
+  Contents   *string
+  Errors     []Message
+  Loader     Loader
+  PluginData interface{}
+  PluginName string
+  ResolveDir string
+  Warnings   []Message
+  WatchDirs  []string
+  WatchFiles []string
+}
+
+type Message struct {
+  Text     string
+  Location *Location
+  Detail   interface{} // The original error from a Go plugin, if applicable
+}
+
+type Location struct {
+  File      string
+  Namespace string
+  Line      int // 1-based
+  Column    int // 0-based, in bytes
+  Length    int // in bytes
+  LineText  string
+}
+```
+
+:::
+
+- `contents`
+
+  Set this to a string to specify the contents of the module. If this is set, no more on-load callbacks will be run for this resolved path. If this is not set, esbuild will continue to run on-load callbacks that were registered after the current one. Then, if the contents are still not set, esbuild will default to loading the contents from the file system if the resolved path is in the `file` namespace.
+
+- `loader`
+
+  This tells esbuild how to interpret the contents. For example, the [`js`](./content-types/#javascript) loader interprets the contents as JavaScript and the [`css`](./content-types/#css) loader interprets the contents as CSS. The loader defaults to js if it's not specified. See the [content types](./content-types/) page for a complete list of all built-in loaders.
+
+- `resolveDir`
+
+  This is the file system directory to use when resolving an import path in this module to a real path on the file system. For modules in the `file` namespace, this value defaults to the directory part of the module path. Otherwise this value defaults to empty unless the plugin provides one. If the plugin doesn't provide one, esbuild's default behavior won't resolve any imports in this module. This directory will be passed to any [on-resolve callbacks](./plugins/#on-resolve) that run on unresolved import paths in this module.
+
+- `errors` and `warnings`
+
+  These properties let you pass any log messages generated during path resolution to esbuild where they will be displayed in the terminal according to the current [log level](./api/#log-level) and end up in the final build result. For example, if you are calling a library and that library can return errors and/or warnings, you will want to forward them using these properties.
+
+  If you only have a single error to return, you don't have to pass it via `errors`. You can simply throw the error in JavaScript or return the `error` object as the second return value in Go.
+
+- `watchFiles` and `watchDirs`
+
+  These properties let you return additional file system paths for esbuild's [watch mode](./api/#watch) to scan. By default esbuild will only scan the path provided to onLoad plugins, and only if the namespace is `file`. If your plugin needs to react to additional changes in the file system, it needs to use one of these properties.
+
+  A rebuild will be triggered if any file in the `watchFiles` array has been changed since the last build. Change detection is somewhat complicated and may check the file contents and/or the file's metadata.
+
+  A rebuild will also be triggered if the list of directory entries for any directory in the `watchDirs` array has been changed since the last build. Note that this does not check anything about the contents of any file in these directories, and it also does not check any subdirectories. Think of this as checking the output of the Unix `ls` command.
+
+  For robustness, you should include all file system paths that were used during the evaluation of the plugin. For example, if your plugin does something equivalent to `require.resolve()`, you'll need to include the paths of all "does this file exist" checks, not just the final path. Otherwise a new file could be created that causes the build to become outdated, but esbuild doesn't detect it because that path wasn't listed.
+
+- `pluginName`
+
+  This property lets you replace this plugin's name with another name for this module load operation. It's useful for proxying another plugin through this plugin. For example, it lets you have a single plugin that forwards to a child process containing multiple plugins. You probably won't need to use this.
+
+- `pluginData`
+
+  This property will be passed to the next plugin that runs in the plugin chain. If you return it from an `onLoad` plugin, it will be passed to the `onResolve` plugins for any imports in that file, and if you return it from an `onResolve` plugin, an arbitrary one will be passed to the `onLoad` plugin when it loads the file (it's arbitrary since the relationship is many-to-one). This is useful to pass data between different plugins without them having to coordinate directly.
+
+### Caching your plugin
+Since esbuild is so fast, it's often the case that plugin evaluation is the main bottleneck when building with esbuild. Caching of plugin evaluation is left up to each plugin instead of being a part of esbuild itself because cache invalidation is plugin-specific. If you are writing a slow plugin that needs a cache to be fast, you will have to write the cache logic yourself.
+
+A cache is essentially a map that memoizes the transform function that represents your plugin. The keys of the map usually contain the inputs to your transform function and the values of the map usually contain the outputs of your transform function. In addition, the map usually has some form of least-recently-used cache eviction policy to avoid continually growing larger in size over time.
+
+The cache can either be stored in memory (beneficial for use with esbuild's rebuild API), on disk (beneficial for caching across separate build script invocations), or even on a server (beneficial for really slow transforms that can be shared between different developer machines). Where to store the cache is case-specific and depends on your plugin.
+
+Here is a simple caching example. Say we want to cache the function `slowTransform()` that takes as input the contents of a file in the `*.example` format and transforms it to JavaScript. An in-memory cache that avoids redundant calls to this function when used with esbuild's [rebuild](./api/#rebuild) API) might look something like this:
+
+```js
+import fs from 'node:fs'
+
+let examplePlugin = {
+  name: 'example',
+  setup(build) {
+    let cache = new Map
+
+    build.onLoad({ filter: /\.example$/ }, async (args) => {
+      let input = await fs.promises.readFile(args.path, 'utf8')
+      let key = args.path
+      let value = cache.get(key)
+
+      if (!value || value.input !== input) {
+        let contents = slowTransform(input)
+        value = { input, output: { contents } }
+        cache.set(key, value)
+      }
+
+      return value.output
+    })
+  }
+}
+```
+
+Some important caveats about the caching code above:
+
+- There is no cache eviction policy present in the code above. Memory usage will continue to grow if more and more keys are added to the cache map.
+
+  To combat this limitation somewhat, the `input` value is stored in the cache `value` instead of in the cache `key`. This means that changing the contents of a file will not leak memory because the key only includes the file path, not the file contents. Changing the file contents only overwrites the previous cache entry. This is probably fine for common usage where someone repeatedly edits the same file in between incremental rebuilds and only occasionally adds or renames files.
+
+  But the cache will continue to grow in size if each build contains new unique path names (e.g. perhaps an auto-generated temporary file path containing the current time). A more advanced version might use a least-recently-used eviction policy.
+
+- Cache invalidation only works if `slowTransform()` is a [pure function](https://en.wikipedia.org/wiki/Pure_function) (meaning that the output of the function only depends on the inputs to the function) and if all of the inputs to the function are somehow captured in the lookup to the cache map. For example if the transform function automatically reads the contents of some other files and the output depends on the contents of those files too, then the cache would fail to be invalidated when those files are changed because they are not included in the cache key.
+
+This part is easy to mess up so it's worth going through a specific example. Consider a plugin that implements a compile-to-CSS language. If that plugin implements `@import` rules itself by parsing imported files and either bundles them or makes any exported variable declarations available to the importing code, your plugin will not be correct if it only checks that the importing file's contents haven't changed because a change to the imported file could also invalidate the cache.
+
+You may be thinking that you could just add the contents of the imported file to the cache key to fix this problem. However, even that may be incorrect. Say for example this plugin uses [`require.resolve()`](https://nodejs.org/api/modules.html#modules_require_resolve_request_options) to resolve the import path to an absolute file path. This is a common approach because it uses node's built-in path resolution that can resolve to a path inside a package. This function usually does many checks for files in different locations before returning the resolved path. For example, importing the path `pkg/file` from the file `src/entry.css` might check the following locations (yes, node's package resolution algorithm is very inefficient):
+
+```
+src/node_modules/pkg/file
+src/node_modules/pkg/file.css
+src/node_modules/pkg/file/package.json
+src/node_modules/pkg/file/main
+src/node_modules/pkg/file/main.css
+src/node_modules/pkg/file/main/index.css
+src/node_modules/pkg/file/index.css
+node_modules/pkg/file
+node_modules/pkg/file.css
+node_modules/pkg/file/package.json
+node_modules/pkg/file/main
+node_modules/pkg/file/main.css
+node_modules/pkg/file/main/index.css
+node_modules/pkg/file/index.css
+```
+
+Say the import `pkg/file` was ultimately resolved to the absolute path `node_modules/pkg/file/index.css`. Even if you cache the contents of both the importing file and the imported file and verify that the contents of both files are still the same before reusing the cache entry, the cache entry could still be stale if one of the other files that `require.resolve()` checks for has either been created or deleted since the cache entry was added. Caching this correctly essentially involves always re-running all such path resolutions even when none of the input files have been changed and verifying that none of the path resolutions have changed either.
+
+- These cache keys are only correct for an in-memory cache. It would be incorrect to implement a file system cache using the same cache keys. While an in-memory cache is guaranteed to always run the same code for every build because the code is also stored in memory, a file system cache could potentially be accessed by two separate builds that each contain different code. Specifically the code for the `slowTransform()` function may have been changed in between builds.
+
+This can happen in various cases. The package containing the function `slowTransform()` may have been updated, or one of its transitive dependencies may have been updated even if you have pinned the package's version due to how npm handles semver, or someone may have [mutated the package contents](https://www.npmjs.com/package/patch-package) on the file system in the meantime, or the transform function may be calling a node API and different builds could be running on different node versions.
+
+If you want to store your cache on the file system, you should guard against changes to the code for the transform function by storing some representation of the code for the transform function in the cache key. This is usually some form of [hash](https://nodejs.org/api/crypto.html#crypto_class_hash) that contains the contents of all relevant files in all relevant packages as well as potentially other details such as which node version you are currently running on. Getting all of this to be correct is non-trivial.
