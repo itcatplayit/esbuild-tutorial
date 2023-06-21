@@ -784,3 +784,175 @@ Say the import `pkg/file` was ultimately resolved to the absolute path `node_mod
 This can happen in various cases. The package containing the function `slowTransform()` may have been updated, or one of its transitive dependencies may have been updated even if you have pinned the package's version due to how npm handles semver, or someone may have [mutated the package contents](https://www.npmjs.com/package/patch-package) on the file system in the meantime, or the transform function may be calling a node API and different builds could be running on different node versions.
 
 If you want to store your cache on the file system, you should guard against changes to the code for the transform function by storing some representation of the code for the transform function in the cache key. This is usually some form of [hash](https://nodejs.org/api/crypto.html#crypto_class_hash) that contains the contents of all relevant files in all relevant packages as well as potentially other details such as which node version you are currently running on. Getting all of this to be correct is non-trivial.
+
+## On-start callbacks
+
+Register an on-start callback to be notified when a new build starts. This triggers for all builds, not just the initial build, so it's especially useful for [rebuilds](./api/#rebuild), [watch mode](./api/#watch), and [serve mode](./api/#serve). Here's how to add an on-start callback:
+
+::: code-group
+
+```js [JS]
+let examplePlugin = {
+  name: 'example',
+  setup(build) {
+    build.onStart(() => {
+      console.log('build started')
+    })
+  },
+}
+```
+
+```go [Go]
+package main
+
+import "fmt"
+import "github.com/evanw/esbuild/pkg/api"
+import "os"
+
+var examplePlugin = api.Plugin{
+  Name: "example",
+  Setup: func(build api.PluginBuild) {
+    build.OnStart(func() (api.OnStartResult, error) {
+      fmt.Fprintf(os.Stderr, "build started\n")
+      return api.OnStartResult{}, nil
+    })
+  },
+}
+
+func main() {
+}
+```
+
+:::
+
+You should not use an on-start callback for initialization since it can be run multiple times. If you want to initialize something, just put your plugin initialization code directly inside the `setup` function instead.
+
+The on-start callback can be `async` and can return a promise. All on-start callbacks from all plugins are run concurrently, and then the build waits for all on-start callbacks to finish before proceeding. On-start callbacks can optionally return errors and/or warnings to be included with the build.
+
+Note that on-start callbacks do not have the ability to mutate the [build options](./plugins/#build-options). The initial build options can only be modified within the `setup` function and are consumed once `setup` returns. All builds after the first one reuse the same initial options so the initial options are never re-consumed, and modifications to `build.initialOptions` that are done within the start callback are ignored.
+
+## On-end callbacks
+
+Register an on-end callback to be notified when a new build ends. This triggers for all builds, not just the initial build, so it's especially useful for [rebuilds](./api/#rebuild), [watch mode](./api/#watch), and [serve mode](./api/#serve). Here's how to add an on-end callback:
+
+::: code-group
+
+```js [JS]
+let examplePlugin = {
+  name: 'example',
+  setup(build) {
+    build.onEnd(result => {
+      console.log(`build ended with ${result.errors.length} errors`)
+    })
+  },
+}
+```
+
+```go [Go]
+package main
+
+import "fmt"
+import "github.com/evanw/esbuild/pkg/api"
+import "os"
+
+var examplePlugin = api.Plugin{
+  Name: "example",
+  Setup: func(build api.PluginBuild) {
+    build.OnEnd(func(result *api.BuildResult) (api.OnEndResult, error) {
+      fmt.Fprintf(os.Stderr, "build ended with %d errors\n", len(result.Errors))
+      return api.OnEndResult{}, nil
+    })
+  },
+}
+
+func main() {
+}
+```
+
+:::
+
+All on-end callbacks are run in serial and each callback is given access to the final build result. It can modify the build result before returning and can delay the end of the build by returning a promise. If you want to be able to inspect the build graph, you should enable the [metafile](./api/#metafile) setting on the [initial options](./plugins/#build-options) and the build graph will be returned as the `metafile` property on the build result object.
+
+## On-dispose callbacks
+
+Register an on-dispose callback to perform cleanup when the plugin is no longer used. It will be called after every `build()` call regardless of whether the build failed or not, as well as after the first `dispose()` call on a given build context. Here's how to add an on-dispose callback:
+
+::: code-group
+
+```js [JS]
+let examplePlugin = {
+  name: 'example',
+  setup(build) {
+    build.onDispose(() => {
+      console.log('This plugin is no longer used')
+    })
+  },
+}
+```
+
+```go [Go]
+package main
+
+import "fmt"
+import "github.com/evanw/esbuild/pkg/api"
+
+var examplePlugin = api.Plugin{
+  Name: "example",
+  Setup: func(build api.PluginBuild) {
+    build.OnDispose(func() {
+      fmt.Println("This plugin is no longer used")
+    })
+  },
+}
+
+func main() {
+}
+```
+
+:::
+
+## Accessing build options
+
+Plugins can access the initial build options from within the `setup` method. This lets you inspect how the build is configured as well as modify the build options before the build starts. Here is an example:
+
+::: code-group
+
+```js [JS]
+let examplePlugin = {
+  name: 'auto-node-env',
+  setup(build) {
+    const options = build.initialOptions
+    options.define = options.define || {}
+    options.define['process.env.NODE_ENV'] =
+      options.minify ? '"production"' : '"development"'
+  },
+}
+```
+
+```go [Go]
+package main
+
+import "github.com/evanw/esbuild/pkg/api"
+
+var examplePlugin = api.Plugin{
+  Name: "auto-node-env",
+  Setup: func(build api.PluginBuild) {
+    options := build.InitialOptions
+    if options.Define == nil {
+      options.Define = map[string]string{}
+    }
+    if options.MinifyWhitespace && options.MinifyIdentifiers && options.MinifySyntax {
+      options.Define[`process.env.NODE_ENV`] = `"production"`
+    } else {
+      options.Define[`process.env.NODE_ENV`] = `"development"`
+    }
+  },
+}
+
+func main() {
+}
+```
+
+:::
+
+Note that modifications to the build options after the build starts do not affect the build. In particular, [rebuilds](./api/#rebuild), [watch mode](./api/#watch), and [serve mode](./api/#serve) do not update their build options if plugins mutate the build options object after the first build has started.
