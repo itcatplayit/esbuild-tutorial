@@ -326,24 +326,24 @@ Usage:
 
 如果直接从npm选择编写自己的代码来下载esbuild，那么依赖esbuild的原生可执行安装包的网络实现细节。这些细节可能在某些点上有变化，也就是这种方法在新esbuild版可能不再工作。不过，这只是一个小缺点，因为该方法应该仍然适用于现有的esbuild版本（发布了的包是不会变的）。
 
-::: 标注详情 
+::: details 标注详情 
 - ^1^ 这个操作系统不在[node支持的平台列表中](https://nodejs.org/api/process.html#process_process_platform)
 - ^2^ 这个架构不在[node支持的架构列表中](https://nodejs.org/api/process.html#processarch)
 :::
 
-### Install the WASM version
+### 安装WASM版本
 
-In addition to the `esbuild` npm package, there is also an `esbuild-wasm` package that functions similarly but that uses WebAssembly instead of native code. Installing it will also install an executable called `esbuild`:
+除了`esbuild` npm包外，还有函数基本相同，但不是用原生代码，而是用WebAssembly代码的`esbuild-wasm`包。安装了还会安装一个可执行的`esbuild`可执行文件。
 
 ```
 npm install --save-exact esbuild-wasm
 ```
 
-**Why this is not recommended**: The WebAssembly version is much, much slower than the native version. In many cases it is an order of magnitude (i.e. 10x) slower. This is for various reasons including a) node re-compiles the WebAssembly code from scratch on every run, b) Go's WebAssembly compilation approach is single-threaded, and c) node has WebAssembly bugs that can delay the exiting of the process by many seconds. The WebAssembly version also excludes some features such as the local file server. You should only use the WebAssembly package like this if there is no other option, such as when you want to use esbuild on an unsupported platform. The WebAssembly package is primarily intended to only be used [in the browser](./api#browser).
+**为什么不推荐**：WebAssembly版本比原生版本慢得多。很多情况下会是倍速级（例如：10倍）的慢。这包括很多原因：a） 节点在每次运行时从头开始重新编译WebAssembly代码；b）Go的WebAssembly编译方法是单线程的；c）节点存在WebAssembly错误，这些错误可能会将进程的退出延迟数秒。WebAssembly版本还排除了一些功能，例如本地文件服务器。只有在没有其他选项的情况下，例如当您想在不受支持的平台上使用esbuild时，才应该像这样使用WebAssembly包。WebAssembly包主要用于[浏览器端](./api#browser)。
 
-### Deno instead of node
+### 不用node用Deno
 
-There is also basic support for the [Deno](https://deno.land/) JavaScript environment if you'd like to use esbuild with that instead. The package is hosted at https://deno.land/x/esbuild and uses the native esbuild executable. The executable will be downloaded and cached from npm at run-time so your computer will need network access to registry.npmjs.org to make use of this package. Using the package looks like this:
+如果您想将esbuild与Deno JavaScript环境一起使用，那么它还提供了对[Deno](https://deno.land/) JavaScript环境的基本支持。程序包托管在 https://deno.land/x/esbuild ，并使用原生esbuild可执行文件。可执行文件将在运行时从npm下载并缓存，因此您的计算机需要通过网络访问 registry.npmjs.org 才能使用此包。使用该包如下所示：
 
 ```js
 import * as esbuild from 'https://deno.land/x/esbuild@v0.17.18/mod.js'
@@ -353,9 +353,9 @@ console.log('result:', result)
 esbuild.stop()
 ```
 
-It has basically the same API as esbuild's npm package with one addition: you need to call `stop()` when you're done because unlike node, Deno doesn't provide the necessary APIs to allow Deno to exit while esbuild's internal child process is still running.
+它基本上与esbuild的npm包具有相同的API，只有一点额外：完成后跟node不同，需要调用`stop()`，Deno不提供必要的API来允许Deno在esbuilt的内部子进程仍在运行时退出。
 
-If you would like to use esbuild's WebAssembly implementation instead of esbuild's native implementation with Deno, you can do that by importing `wasm.js` instead of `mod.js` like this:
+如果您想使用esbuild的WebAssembly实现，而不是使用带有Deno的esbuild原生实现，可以通过导入`wasm.js`而不是`mod.js`来实现，如下所示：
 
 ```js
 import * as esbuild from 'https://deno.land/x/esbuild@v0.17.18/wasm.js'
@@ -365,35 +365,35 @@ console.log('result:', result)
 esbuild.stop()
 ```
 
-Using WebAssembly instead of native means you do not need to specify Deno's `--allow-run` permission, and WebAssembly the only option in situations where the file system is unavailable such as with [Deno Deploy](https://deno.com/deploy). However, keep in mind that the WebAssembly version of esbuild is a lot slower than the native version. Another thing to know about WebAssembly is that Deno currently has a bug where process termination is unnecessarily delayed until all loaded WebAssembly modules are fully optimized, which can take many seconds. You may want to manually call `Deno.exit(0)` after your code is done if you are writing a short-lived script that uses esbuild's WebAssembly implementation so that your code exits in a reasonable timeframe.
+使用WebAssembly而不是原生意味着您不需要指定Deno的`--allow-run`权限，并且在文件系统不可用的情况下，如[Deno部署](https://deno.com/deploy)，WebAssembly是唯一的选项。但是，请记住，esbuild的WebAssembly版本比原生版本慢得多。关于WebAssembly需要知道的另一件事是，Deno目前存在一个错误，即进程终止被不必要地延迟，直到所有加载的WebAssembly模块都得到完全优化，这可能需要几秒钟的时间。如果您正在编写一个使用esbuild的WebAssembly实现的短周期脚本，以便您的代码在合理的时间内退出，那么您可能需要在代码完成后手动调用`Deno.exit(0)`。
 
-**Why this is not recommended**: Deno is newer than node, less widely used, and supports fewer platforms than node, so node is recommended as the primary way to run esbuild. Deno also uses the internet as a package system instead of existing JavaScript package ecosystems, and esbuild is designed around and optimized for npm-style package management. You should still be able to use esbuild with Deno, but you will need a plugin if you would like to be able to bundle HTTP URLs.
+**为什么不建议这样做**：Deno比node更新，使用较少，支持的平台比node少，因此建议将node作为运行esbuild的主要方式。Deno还使用互联网作为包系统，而不是现有的JavaScript包生态系统，esbuild是围绕npm风格的包管理设计和优化的。您应该仍然能够将esbuild与Deno一起使用，但如果您希望能够打包HTTP URL，则需要一个插件。
 
-### Build from source
+### 从源码构建
 
-To build esbuild from source:
+从源码构建方法：
 
-1. Install the Go compiler: 
+1. 安装Go编译器：
 
 https://go.dev/dl/
 
-2. Download the source code for esbuild:
+2. 下载esbuild源码：
 
 ```
 git clone --depth 1 --branch v0.17.18 https://github.com/evanw/esbuild.git
 cd esbuild
 ```
 
-3. Build the `esbuild` executable (it will be `esbuild.exe` on Windows):
+3. 构建`esbuild`可执行文件（Windows下为`esbuild.exe`文件）：
 
 ```
 go build ./cmd/esbuild
 ```
 
-If you want to build for other platforms, you can just prefix the build command with the platform information. For example, you can build the 32-bit Linux version using this command:
+如果想要构建其他平台的，只需要在平台信息中添加构建命令的前缀。例如，可以用如下方式构建32位Linux版本：
 
 ```
 GOOS=linux GOARCH=386 go build ./cmd/esbuild
 ```
 
-**Why this is not recommended**: The native version can only be used via the command-line interface, which can be unergonomic for complex use cases and which does not support [plugins](./plugins). You will need to write JavaScript or Go code and use [esbuild's API](./api) to use plugins.
+**为什么不建议这样做**: 本机版本只能通过命令行界面使用，对于复杂的用例，命令行界面可能不符合逻辑，并且不支持[插件](./plugins)。您需要编写JavaScript或Go代码，并使用[esbuild的API](./api)来使用插件。
