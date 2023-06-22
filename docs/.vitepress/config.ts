@@ -12,6 +12,32 @@ export default defineConfig({
       'link', { href: '/favicon.svg', type: 'image/svg+xml' }
     ]
   ],
+  themeConfig: {
+    search: {
+      provider: 'local',
+      options: {
+        locales: {
+          zh_cn: {
+            translations: {
+              button: {
+                buttonText: '搜索文档',
+                buttonAriaLabel: '搜索文档',
+              },
+              modal: {
+                noResultsText: '无法找到相关结果',
+                resetButtonTitle: '清除查询条件',
+                footer: {
+                  selectText: '选择',
+                  navigateText: '切换',
+                  closeText: '关闭',
+                },
+              },
+            },
+          },
+        },
+      },
+    },
+  },
   locales: {
     root: {
       title: "esbuild tutorial",
@@ -67,29 +93,6 @@ export default defineConfig({
       themeConfig: {
         // i18nRouting: true,
         logo: '/favicon.svg',
-        search: {
-          provider: 'local',
-          options: {
-            locales: {
-              zh: {
-                translations: {
-                  button: {
-                    buttonText: '搜索文档',
-                    buttonAriaLabel: '搜索文档',
-                  },
-                  modal: {
-                    noResultsText: '无法找到相关结果',
-                    resetButtonTitle: '清除查询条件',
-                    footer: {
-                      selectText: '选择',
-                      navigateText: '切换',
-                    },
-                  },
-                },
-              },
-            },
-          },
-        },
         nav: [
           { text: 'Api', link: '/zh_cn/official/api' }
         ],
@@ -122,9 +125,9 @@ export default defineConfig({
           message: '<a href="https://github.com/itcatplayit/esbuild-tutorial/blob/main/LICENSE">MIT 开源协议</a>.',
           copyright: '版权 © 2022-至今 <a href="https://github.com/itcatplayit">itcatplayit</a>',
         },
-        // darkModeSwitchLabel: 'Appearance',
+        darkModeSwitchLabel: '亮暗切换',
         // sidebarMenuLabel: 'Menu',
-        // returnToTopLabel: 'Return to top',
+        returnToTopLabel: '回到顶部',
         // langMenuLabel: 'Change language',
       }
     },
