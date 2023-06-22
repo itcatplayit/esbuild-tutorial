@@ -956,3 +956,693 @@ func main() {
 :::
 
 Note that modifications to the build options after the build starts do not affect the build. In particular, [rebuilds](./api/#rebuild), [watch mode](./api/#watch), and [serve mode](./api/#serve) do not update their build options if plugins mutate the build options object after the first build has started.
+
+## Resolving paths
+
+When a plugin returns a result from an [on-resolve callback](./plugins/#on-resolve), the result completely replaces esbuild's built-in path resolution. This gives the plugin complete control over how path resolution works, but it means that the plugin may have to reimplement some of the behavior that esbuild already has built-in if it wants to have similar behavior. For example, a plugin may want to search for a package in the user's `node_modules` directory, which is something esbuild already implements.
+
+Instead of reimplementing esbuild's built-in behavior, plugins have the option of running esbuild's path resolution manually and inspecting the result. This lets you adjust the inputs and/or the outputs of esbuild's path resolution. Here's an example:
+
+::: code-group
+
+```js [JS]
+import * as esbuild from 'esbuild'
+
+let examplePlugin = {
+  name: 'example',
+  setup(build) {
+    build.onResolve({ filter: /^example$/ }, async () => {
+      const result = await build.resolve('./foo', {
+        kind: 'import-statement',
+        resolveDir: './bar',
+      })
+      if (result.errors.length > 0) {
+        return { errors: result.errors }
+      }
+      return { path: result.path, external: true }
+    })
+  },
+}
+
+await esbuild.build({
+  entryPoints: ['app.js'],
+  bundle: true,
+  outfile: 'out.js',
+  plugins: [examplePlugin],
+})
+```
+
+```go [Go]
+package main
+
+import "os"
+import "github.com/evanw/esbuild/pkg/api"
+
+var examplePlugin = api.Plugin{
+  Name: "example",
+  Setup: func(build api.PluginBuild) {
+    build.OnResolve(api.OnResolveOptions{Filter: `^example$`},
+      func(api.OnResolveArgs) (api.OnResolveResult, error) {
+        result := build.Resolve("./foo", api.ResolveOptions{
+          Kind:       api.ResolveJSImportStatement,
+          ResolveDir: "./bar",
+        })
+        if len(result.Errors) > 0 {
+          return api.OnResolveResult{Errors: result.Errors}, nil
+        }
+        return api.OnResolveResult{Path: result.Path, External: true}, nil
+      })
+  },
+}
+
+func main() {
+  result := api.Build(api.BuildOptions{
+    EntryPoints: []string{"app.js"},
+    Bundle:      true,
+    Outfile:     "out.js",
+    Plugins:     []api.Plugin{examplePlugin},
+    Write:       true,
+  })
+
+  if len(result.Errors) > 0 {
+    os.Exit(1)
+  }
+}
+```
+
+:::
+
+This plugin intercepts imports to the path `example`, tells esbuild to resolve the import `./foo` in the directory `./bar`, forces whatever path esbuild returns to be considered external, and maps the import for `example` to that external path.
+
+Here are some additional things to know about this API:
+
+- If you don't pass the optional `resolveDir` parameter, esbuild will still run `onResolve` plugin callbacks but will not attempt any path resolution itself. All of esbuild's path resolution logic depends on the `resolveDir` parameter including looking for packages in `node_modules` directories (since it needs to know where those `node_modules` directories might be).
+
+- If you want to resolve a file name in a specific directory, make sure the input path starts with `./.` Otherwise the input path will be treated as a package path instead of a relative path. This behavior is identical to esbuild's normal path resolution logic.
+
+- If path resolution fails, the `errors` property on the returned object will be a non-empty array containing the error information. This function does not always throw an error when it fails. You need to check for errors after calling it.
+
+- The behavior of this function depends on the build configuration. That's why it's a property of the `build` object instead of being a top-level API call. This also means you can't call it until all plugin `setup` functions have finished since these give plugins the opportunity to adjust the build configuration before it's frozen at the start of the build. So the `resolve` function is going to be most useful inside your `onResolve` and/or `onLoad` callbacks.
+
+- There is currently no attempt made to detect infinite path resolution loops. Calling `resolve` from within `onResolve` with the same parameters is almost certainly a bad idea.
+
+### Resolve options
+
+The `resolve` function takes the path to resolve as the first argument and an object with optional properties as the second argument. This options object is very similar to the [arguments that are passed to `onResolve`](./plugins/#on-resolve-arguments). Here are the available options:
+
+::: code-group
+
+```js [JS]
+interface ResolveOptions {
+  kind: ResolveKind;
+  importer?: string;
+  namespace?: string;
+  resolveDir?: string;
+  pluginData?: any;
+}
+
+type ResolveKind =
+  | 'entry-point'
+  | 'import-statement'
+  | 'require-call'
+  | 'dynamic-import'
+  | 'require-resolve'
+  | 'import-rule'
+  | 'url-token'
+```
+
+```go [Go]
+type ResolveOptions struct {
+  Kind       ResolveKind
+  Importer   string
+  Namespace  string
+  ResolveDir string
+  PluginData interface{}
+}
+
+const (
+  ResolveEntryPoint        ResolveKind
+  ResolveJSImportStatement ResolveKind
+  ResolveJSRequireCall     ResolveKind
+  ResolveJSDynamicImport   ResolveKind
+  ResolveJSRequireResolve  ResolveKind
+  ResolveCSSImportRule     ResolveKind
+  ResolveCSSURLToken       ResolveKind
+)
+```
+
+:::
+
+- `kind`
+
+  This tells esbuild how the path was imported, which can affect path resolution. For example, [node's path resolution rules](https://nodejs.org/api/packages.html#conditional-exports) say that paths imported using `'require-call'` should respect [conditional package imports](./api/#conditions) in the `"require"` section in `package.json` while paths imported using `'import-statement'` should respect conditional package imports in the `"import"` section instead.
+
+- `importer`
+
+  If set, this is interpreted as the path of the module containing this import to be resolved. This affects plugins with `onResolve` callbacks that check the `importer` value.
+
+- `namespace`
+
+  If set, this is interpreted as the namespace of the module containing this import to be resolved. This affects plugins with `onResolve` callbacks that check the `namespace` value. You can read more about namespaces [here](./plugins/#namespaces).
+
+- `resolveDir`
+
+  This is the file system directory to use when resolving an import path to a real path on the file system. This must be set for esbuild's built-in path resolution to be able to find a given file, even for non-relative package paths (since esbuild needs to know where the `node_modules` directory is).
+
+- `pluginData`
+
+  This property can be used to pass custom data to whatever [on-resolve callbacks](./plugins/#on-resolve) match this import path. The meaning of this data is left entirely up to you.
+
+### Resolve results
+
+The `resolve` function returns an object that's very similar to what plugins can [return from an `onResolve` callback](./plugins/#on-resolve-results). It has the following properties:
+
+::: code-group
+
+```js [JS]
+export interface ResolveResult {
+  errors: Message[];
+  external: boolean;
+  namespace: string;
+  path: string;
+  pluginData: any;
+  sideEffects: boolean;
+  suffix: string;
+  warnings: Message[];
+}
+
+interface Message {
+  text: string;
+  location: Location | null;
+  detail: any; // The original error from a JavaScript plugin, if applicable
+}
+
+interface Location {
+  file: string;
+  namespace: string;
+  line: number; // 1-based
+  column: number; // 0-based, in bytes
+  length: number; // in bytes
+  lineText: string;
+}
+```
+
+```go [Go]
+type ResolveResult struct {
+  Errors      []Message
+  External    bool
+  Namespace   string
+  Path        string
+  PluginData  interface{}
+  SideEffects bool
+  Suffix      string
+  Warnings    []Message
+}
+
+type Message struct {
+  Text     string
+  Location *Location
+  Detail   interface{} // The original error from a Go plugin, if applicable
+}
+
+type Location struct {
+  File      string
+  Namespace string
+  Line      int // 1-based
+  Column    int // 0-based, in bytes
+  Length    int // in bytes
+  LineText  string
+}
+```
+
+:::
+
+- `path`
+
+This is the result of path resolution, or an empty string if path resolution failed.
+
+- `external`
+
+This will be true if the path was marked as [external](./api/#external), which means it will not be included in the bundle and will instead be imported at run-time.
+
+- `namespace`
+
+This is the namespace associated with the resolved path. You can read more about namespaces [here](./plugins/#namespaces).
+
+- `errors` and `warnings`
+
+These properties hold any log messages generated during path resolution, either by any plugins that responded to this path resolution operation or by esbuild itself. These log messages are not automatically included in the log, so they will be completely invisible if you discard them. If you want them to be included in the log, you'll need to return them from either `onResolve` or `onLoad`.
+
+- `pluginData`
+
+If a plugin responded to this path resolution operation and returned `pluginData` from its `onResolve` callback, that data will end up here. This is useful to pass data between different plugins without them having to coordinate directly.
+
+- `sideEffects`
+
+This property will be `true` unless the module is somehow annotated as having no side effects, in which case it will be `false`. This will be `false` for packages that have `"sideEffects": false` in the corresponding `package.json` file, and also if a plugin responds to this path resolution operation and returns `sideEffects: false`. You can read more about what `sideEffects` means in [Webpack's documentation about the feature](https://webpack.js.org/guides/tree-shaking/#mark-the-file-as-side-effect-free).
+
+- `suffix`
+
+This can contain an optional URL query or hash if there was one at the end of the path to be resolved and if removing it was required for the path to resolve successfully.
+
+## Example plugins
+
+The example plugins below are meant to give you an idea of the different types of things you can do with the plugin API.
+
+### HTTP plugin
+
+*This example demonstrates: using a path format other than file system paths, namespace-specific path resolution, using resolve and load callbacks together.*
+
+This plugin allows you to import HTTP URLs into JavaScript code. The code will automatically be downloaded at build time. It enables the following workflow:
+
+```
+import { zip } from 'https://unpkg.com/lodash-es@4.17.15/lodash.js'
+console.log(zip([1, 2], ['a', 'b']))
+```
+
+This can be accomplished with the following plugin. Note that for real usage the downloads should be cached, but caching has been omitted from this example for brevity:
+
+::: code-group
+
+```js [JS]
+import * as esbuild from 'esbuild'
+import https from 'node:https'
+import http from 'node:http'
+
+let httpPlugin = {
+  name: 'http',
+  setup(build) {
+    // Intercept import paths starting with "http:" and "https:" so
+    // esbuild doesn't attempt to map them to a file system location.
+    // Tag them with the "http-url" namespace to associate them with
+    // this plugin.
+    build.onResolve({ filter: /^https?:\/\// }, args => ({
+      path: args.path,
+      namespace: 'http-url',
+    }))
+
+    // We also want to intercept all import paths inside downloaded
+    // files and resolve them against the original URL. All of these
+    // files will be in the "http-url" namespace. Make sure to keep
+    // the newly resolved URL in the "http-url" namespace so imports
+    // inside it will also be resolved as URLs recursively.
+    build.onResolve({ filter: /.*/, namespace: 'http-url' }, args => ({
+      path: new URL(args.path, args.importer).toString(),
+      namespace: 'http-url',
+    }))
+
+    // When a URL is loaded, we want to actually download the content
+    // from the internet. This has just enough logic to be able to
+    // handle the example import from unpkg.com but in reality this
+    // would probably need to be more complex.
+    build.onLoad({ filter: /.*/, namespace: 'http-url' }, async (args) => {
+      let contents = await new Promise((resolve, reject) => {
+        function fetch(url) {
+          console.log(`Downloading: ${url}`)
+          let lib = url.startsWith('https') ? https : http
+          let req = lib.get(url, res => {
+            if ([301, 302, 307].includes(res.statusCode)) {
+              fetch(new URL(res.headers.location, url).toString())
+              req.abort()
+            } else if (res.statusCode === 200) {
+              let chunks = []
+              res.on('data', chunk => chunks.push(chunk))
+              res.on('end', () => resolve(Buffer.concat(chunks)))
+            } else {
+              reject(new Error(`GET ${url} failed: status ${res.statusCode}`))
+            }
+          }).on('error', reject)
+        }
+        fetch(args.path)
+      })
+      return { contents }
+    })
+  },
+}
+
+await esbuild.build({
+  entryPoints: ['app.js'],
+  bundle: true,
+  outfile: 'out.js',
+  plugins: [httpPlugin],
+})
+```
+
+```go [Go]
+package main
+
+import "io/ioutil"
+import "net/http"
+import "net/url"
+import "os"
+import "github.com/evanw/esbuild/pkg/api"
+
+var httpPlugin = api.Plugin{
+  Name: "http",
+  Setup: func(build api.PluginBuild) {
+    // Intercept import paths starting with "http:" and "https:" so
+    // esbuild doesn't attempt to map them to a file system location.
+    // Tag them with the "http-url" namespace to associate them with
+    // this plugin.
+    build.OnResolve(api.OnResolveOptions{Filter: `^https?://`},
+      func(args api.OnResolveArgs) (api.OnResolveResult, error) {
+        return api.OnResolveResult{
+          Path:      args.Path,
+          Namespace: "http-url",
+        }, nil
+      })
+
+    // We also want to intercept all import paths inside downloaded
+    // files and resolve them against the original URL. All of these
+    // files will be in the "http-url" namespace. Make sure to keep
+    // the newly resolved URL in the "http-url" namespace so imports
+    // inside it will also be resolved as URLs recursively.
+    build.OnResolve(api.OnResolveOptions{Filter: ".*", Namespace: "http-url"},
+      func(args api.OnResolveArgs) (api.OnResolveResult, error) {
+        base, err := url.Parse(args.Importer)
+        if err != nil {
+          return api.OnResolveResult{}, err
+        }
+        relative, err := url.Parse(args.Path)
+        if err != nil {
+          return api.OnResolveResult{}, err
+        }
+        return api.OnResolveResult{
+          Path:      base.ResolveReference(relative).String(),
+          Namespace: "http-url",
+        }, nil
+      })
+
+    // When a URL is loaded, we want to actually download the content
+    // from the internet. This has just enough logic to be able to
+    // handle the example import from unpkg.com but in reality this
+    // would probably need to be more complex.
+    build.OnLoad(api.OnLoadOptions{Filter: ".*", Namespace: "http-url"},
+      func(args api.OnLoadArgs) (api.OnLoadResult, error) {
+        res, err := http.Get(args.Path)
+        if err != nil {
+          return api.OnLoadResult{}, err
+        }
+        defer res.Body.Close()
+        bytes, err := ioutil.ReadAll(res.Body)
+        if err != nil {
+          return api.OnLoadResult{}, err
+        }
+        contents := string(bytes)
+        return api.OnLoadResult{Contents: &contents}, nil
+      })
+  },
+}
+
+func main() {
+  result := api.Build(api.BuildOptions{
+    EntryPoints: []string{"app.js"},
+    Bundle:      true,
+    Outfile:     "out.js",
+    Plugins:     []api.Plugin{httpPlugin},
+    Write:       true,
+  })
+
+  if len(result.Errors) > 0 {
+    os.Exit(1)
+  }
+}
+```
+
+:::
+
+The plugin first uses a resolver to move `http://` and `https://` URLs to the `http-url` namespace. Setting the namespace tells esbuild to not treat these paths as file system paths. Then, a loader for the `http-url` namespace downloads the module and returns the contents to esbuild. From there, another resolver for import paths inside modules in the `http-url` namespace picks up relative paths and translates them into full URLs by resolving them against the importing module's URL. That then feeds back into the loader allowing downloaded modules to download additional modules recursively.
+
+### WebAssembly plugin
+
+*This example demonstrates: working with binary data, creating virtual modules using import statements, re-using the same path with different namespaces.*
+
+This plugin allows you to import `.wasm` files into JavaScript code. It does not generate the WebAssembly files themselves; that can either be done by another tool or by modifying this example plugin to suit your needs. It enables the following workflow:
+
+```js
+import load from './example.wasm'
+load(imports).then(exports => { ... })
+```
+
+When you import a `.wasm` file, this plugin generates a virtual JavaScript module in the `wasm-stub` namespace with a single function that loads the WebAssembly module exported as the default export. That stub module looks something like this:
+
+```js
+import wasm from '/path/to/example.wasm'
+export default (imports) =>
+  WebAssembly.instantiate(wasm, imports).then(
+    result => result.instance.exports)
+```
+
+Then that stub module imports the WebAssembly file itself as another module in the `wasm-binary` namespace using esbuild's built-in [binary](./content-types/#binary) loader. This means importing a `.wasm` file actually generates two virtual modules. Here's the code for the plugin:
+
+::: code-group
+
+```js [JS]
+import * as esbuild from 'esbuild'
+import path from 'node:path'
+import fs from 'node:fs'
+
+let wasmPlugin = {
+  name: 'wasm',
+  setup(build) {
+    // Resolve ".wasm" files to a path with a namespace
+    build.onResolve({ filter: /\.wasm$/ }, args => {
+      // If this is the import inside the stub module, import the
+      // binary itself. Put the path in the "wasm-binary" namespace
+      // to tell our binary load callback to load the binary file.
+      if (args.namespace === 'wasm-stub') {
+        return {
+          path: args.path,
+          namespace: 'wasm-binary',
+        }
+      }
+
+      // Otherwise, generate the JavaScript stub module for this
+      // ".wasm" file. Put it in the "wasm-stub" namespace to tell
+      // our stub load callback to fill it with JavaScript.
+      //
+      // Resolve relative paths to absolute paths here since this
+      // resolve callback is given "resolveDir", the directory to
+      // resolve imports against.
+      if (args.resolveDir === '') {
+        return // Ignore unresolvable paths
+      }
+      return {
+        path: path.isAbsolute(args.path) ? args.path : path.join(args.resolveDir, args.path),
+        namespace: 'wasm-stub',
+      }
+    })
+
+    // Virtual modules in the "wasm-stub" namespace are filled with
+    // the JavaScript code for compiling the WebAssembly binary. The
+    // binary itself is imported from a second virtual module.
+    build.onLoad({ filter: /.*/, namespace: 'wasm-stub' }, async (args) => ({
+      contents: `import wasm from ${JSON.stringify(args.path)}
+        export default (imports) =>
+          WebAssembly.instantiate(wasm, imports).then(
+            result => result.instance.exports)`,
+    }))
+
+    // Virtual modules in the "wasm-binary" namespace contain the
+    // actual bytes of the WebAssembly file. This uses esbuild's
+    // built-in "binary" loader instead of manually embedding the
+    // binary data inside JavaScript code ourselves.
+    build.onLoad({ filter: /.*/, namespace: 'wasm-binary' }, async (args) => ({
+      contents: await fs.promises.readFile(args.path),
+      loader: 'binary',
+    }))
+  },
+}
+
+await esbuild.build({
+  entryPoints: ['app.js'],
+  bundle: true,
+  outfile: 'out.js',
+  plugins: [wasmPlugin],
+})
+```
+
+```go [Go]
+package main
+
+import "encoding/json"
+import "io/ioutil"
+import "os"
+import "path/filepath"
+import "github.com/evanw/esbuild/pkg/api"
+
+var wasmPlugin = api.Plugin{
+  Name: "wasm",
+  Setup: func(build api.PluginBuild) {
+    // Resolve ".wasm" files to a path with a namespace
+    build.OnResolve(api.OnResolveOptions{Filter: `\.wasm$`},
+      func(args api.OnResolveArgs) (api.OnResolveResult, error) {
+        // If this is the import inside the stub module, import the
+        // binary itself. Put the path in the "wasm-binary" namespace
+        // to tell our binary load callback to load the binary file.
+        if args.Namespace == "wasm-stub" {
+          return api.OnResolveResult{
+            Path:      args.Path,
+            Namespace: "wasm-binary",
+          }, nil
+        }
+
+        // Otherwise, generate the JavaScript stub module for this
+        // ".wasm" file. Put it in the "wasm-stub" namespace to tell
+        // our stub load callback to fill it with JavaScript.
+        //
+        // Resolve relative paths to absolute paths here since this
+        // resolve callback is given "resolveDir", the directory to
+        // resolve imports against.
+        if args.ResolveDir == "" {
+          return api.OnResolveResult{}, nil // Ignore unresolvable paths
+        }
+        if !filepath.IsAbs(args.Path) {
+          args.Path = filepath.Join(args.ResolveDir, args.Path)
+        }
+        return api.OnResolveResult{
+          Path:      args.Path,
+          Namespace: "wasm-stub",
+        }, nil
+      })
+
+    // Virtual modules in the "wasm-stub" namespace are filled with
+    // the JavaScript code for compiling the WebAssembly binary. The
+    // binary itself is imported from a second virtual module.
+    build.OnLoad(api.OnLoadOptions{Filter: `.*`, Namespace: "wasm-stub"},
+      func(args api.OnLoadArgs) (api.OnLoadResult, error) {
+        bytes, err := json.Marshal(args.Path)
+        if err != nil {
+          return api.OnLoadResult{}, err
+        }
+        contents := `import wasm from ` + string(bytes) + `
+          export default (imports) =>
+            WebAssembly.instantiate(wasm, imports).then(
+              result => result.instance.exports)`
+        return api.OnLoadResult{Contents: &contents}, nil
+      })
+
+    // Virtual modules in the "wasm-binary" namespace contain the
+    // actual bytes of the WebAssembly file. This uses esbuild's
+    // built-in "binary" loader instead of manually embedding the
+    // binary data inside JavaScript code ourselves.
+    build.OnLoad(api.OnLoadOptions{Filter: `.*`, Namespace: "wasm-binary"},
+      func(args api.OnLoadArgs) (api.OnLoadResult, error) {
+        bytes, err := ioutil.ReadFile(args.Path)
+        if err != nil {
+          return api.OnLoadResult{}, err
+        }
+        contents := string(bytes)
+        return api.OnLoadResult{
+          Contents: &contents,
+          Loader:   api.LoaderBinary,
+        }, nil
+      })
+  },
+}
+
+func main() {
+  result := api.Build(api.BuildOptions{
+    EntryPoints: []string{"app.js"},
+    Bundle:      true,
+    Outfile:     "out.js",
+    Plugins:     []api.Plugin{wasmPlugin},
+    Write:       true,
+  })
+
+  if len(result.Errors) > 0 {
+    os.Exit(1)
+  }
+}
+```
+
+:::
+
+The plugin works in multiple steps. First, a resolve callback captures `.wasm` paths in normal modules and moves them to the `wasm-stub` namespace. Then load callback for the `wasm-stub` namespace generates a JavaScript stub module that exports the loader function and imports the `.wasm` path. This invokes the resolve callback again which this time moves the path to the `wasm-binary` namespace. Then the second load callback for the `wasm-binary` namespace causes the WebAssembly file to be loaded using the `binary` loader, which tells esbuild to embed the file itself in the bundle.
+
+### Svelte plugin
+
+*This example demonstrates: supporting a compile-to-JavaScript language, reporting warnings and errors, integrating source maps.*
+
+This plugin allows you to bundle `.svelte` files, which are from the [Svelte](https://svelte.dev/) framework. You write code in an HTML-like syntax that is then converted to JavaScript by the Svelte compiler. Svelte code looks something like this:
+
+```html
+<script>
+  let a = 1;
+  let b = 2;
+</script>
+<input type="number" bind:value={a}>
+<input type="number" bind:value={b}>
+<p>{a} + {b} = {a + b}</p>
+```
+
+Compiling this code with the Svelte compiler generates a JavaScript module that depends on the `svelte/internal` package and that exports the component as a a single class using the `default` export. This means `.svelte` files can be compiled independently, which makes Svelte a good fit for an esbuild plugin. This plugin is triggered by importing a `.svelte` file like this:
+
+```js
+import Button from './button.svelte'
+```
+
+Here's the code for the plugin (there is no Go version of this plugin because the Svelte compiler is written in JavaScript):
+
+```js
+import * as esbuild from 'esbuild'
+import * as svelte from 'svelte/compiler.mjs'
+import path from 'node:path'
+import fs from 'node:fs'
+
+let sveltePlugin = {
+  name: 'svelte',
+  setup(build) {
+    build.onLoad({ filter: /\.svelte$/ }, async (args) => {
+      // This converts a message in Svelte's format to esbuild's format
+      let convertMessage = ({ message, start, end }) => {
+        let location
+        if (start && end) {
+          let lineText = source.split(/\r\n|\r|\n/g)[start.line - 1]
+          let lineEnd = start.line === end.line ? end.column : lineText.length
+          location = {
+            file: filename,
+            line: start.line,
+            column: start.column,
+            length: lineEnd - start.column,
+            lineText,
+          }
+        }
+        return { text: message, location }
+      }
+
+      // Load the file from the file system
+      let source = await fs.promises.readFile(args.path, 'utf8')
+      let filename = path.relative(process.cwd(), args.path)
+
+      // Convert Svelte syntax to JavaScript
+      try {
+        let { js, warnings } = svelte.compile(source, { filename })
+        let contents = js.code + `//# sourceMappingURL=` + js.map.toUrl()
+        return { contents, warnings: warnings.map(convertMessage) }
+      } catch (e) {
+        return { errors: [convertMessage(e)] }
+      }
+    })
+  }
+}
+
+await esbuild.build({
+  entryPoints: ['app.js'],
+  bundle: true,
+  outfile: 'out.js',
+  plugins: [sveltePlugin],
+})
+```
+
+This plugin only needs a load callback, not a resolve callback, because it's simple enough that it just needs to transform the loaded code into JavaScript without worrying about where the code comes from.
+
+It appends a `//# sourceMappingURL=` comment to the generated JavaScript to tell esbuild how to map the generated JavaScript back to the original source code. If source maps are enabled during the build, esbuild will use this to ensure that the generated positions in the final source map are mapped all the way back to the original Svelte file instead of to the intermediate JavaScript code.
+
+## Plugin API limitations
+
+This API does not intend to cover all use cases. It's not possible to hook into every part of the bundling process. For example, it's not currently possible to modify the AST directly. This restriction exists to preserve the excellent performance characteristics of esbuild as well as to avoid exposing too much API surface which would be a maintenance burden and would prevent improvements that involve changing the AST.
+
+One way to think about esbuild is as a "linker" for the web. Just like a linker for native code, esbuild's job is to take a set of files, resolve and bind references between them, and generate a single file containing all of the code linked together. A plugin's job is to generate the individual files that end up being linked.
+
+Plugins in esbuild work best when they are relatively scoped and only customize a small aspect of the build. For example, a plugin for a special configuration file in a custom format (e.g. YAML) is very appropriate. The more plugins you use, the slower your build will get, especially if your plugin is written in JavaScript. If a plugin applies to every file in your build, then your build will likely be very slow. If caching is applicable, it must be done by the plugin itself.
