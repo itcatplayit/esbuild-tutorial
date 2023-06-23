@@ -59,6 +59,7 @@ export default defineConfig({
           { text: 'Getting Started', link: '/official/getting-started', activeMatch: '/official/', },
           { text: 'API', link: '/official/api', activeMatch: '/official/', },
           { text: 'content Types', link: '/official/content-types', activeMatch: '/official/', },
+          { text: 'plugins', link: '/zh_cn/official/plugins', activeMatch: '/zh_cn/official/', },
           { text: 'FAQ', link: '/official/faq', activeMatch: '/official/', },
           { text: 'Bundle Size Analyzer', link: 'https://esbuild.github.io/analyze/' }
         ],
@@ -107,6 +108,7 @@ export default defineConfig({
           { text: '快速开始', link: '/zh_cn/official/getting-started', activeMatch: '/zh_cn/official/', },
           { text: 'API', link: '/zh_cn/official/api', activeMatch: '/zh_cn/official/', },
           { text: '内容类型', link: '/zh_cn/official/content-types', activeMatch: '/zh_cn/official/', },
+          { text: '插件', link: '/zh_cn/official/plugins', activeMatch: '/zh_cn/official/', },
           { text: 'FAQ', link: '/zh_cn/official/faq', activeMatch: '/zh_cn/official/', },
           { text: '包大小分析', link: 'https://esbuild.github.io/analyze/' }
         ],
