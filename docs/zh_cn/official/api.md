@@ -8,13 +8,13 @@
 
 - **Go**: 如果使用Go，可以发现为esbuild自动生成的Go文档作为参考很有帮助。这两个公共Go包都有单独的文档：[`pkg/api`](https://pkg.go.dev/github.com/evanw/esbuild/pkg/api) 和 [`pkg/cli`](https://pkg.go.dev/github.com/evanw/esbuild/pkg/cli)。
 
-## Overview
+## 概述
 
-The two most commonly-used esbuild APIs are [build](./api#build) and [transform](./api#transform). Each is described below at a high level, followed by documentation for each individual API option.
+两种常用的esbuild API是[build](./api#build) 和 [transform](./api#transform)。下面对每一个选项进行了详细描述，然后是每个API选项的文档。
 
 ### Build
 
-This is the primary interface to esbuild. You typically pass one or more [entry point](#entry-points) files to process along with various options, and then esbuild writes the results back out to the file system. Here's a simple example that enables [bundling](#bundle) with an [output directory](#outdir):
+这是esbuild的主要接口。通常会传递一个或多个[入口点](#entry-points)文件和各种选项进行处理，然后esbuild将结果写回文件系统。下面是一个简单的示例，它支持与[输出目录](#outdir)[打包](#bundle)：
 
 ::: code-group
 
@@ -53,11 +53,11 @@ func main() {
 
 :::
 
-Advanced use of the build API involves setting up a long-running build context. This context is an explicit object in JS and Go but is implicit with the CLI. All builds done with a given context share the same build options, and subsequent builds are done incrementally (i.e. they reuse some work from previous builds to improve performance). This is useful for development because esbuild can rebuild your app in the background for you while you work.
+构建API的高级使用涉及设置长时间运行的构建上下文。此上下文在JS和Go中是一个显式对象，但在CLI中是隐式的。使用给定上下文完成的所有构建都共享相同的构建选项，并且后续构建是增量完成的（即，它们重用以前构建的一些工作以提高性能）。这对开发很有用，因为esbuild可以在您工作时在后台为您重建应用程序。
 
-There are three different incremental build APIs:
+有三种不同的增量构建API：
 
-- **[Watch mode](#watch)** tells esbuild to watch the file system and automatically rebuild for you whenever you edit and save a file that could invalidate the build. Here's an example:
+- **[监听模式](#watch)** 告诉esbuild监视文件系统，并在您编辑和保存可能使构建无效的文件时为您自动重建。以下是一个示例：
 
 ::: code-group
 
@@ -88,7 +88,7 @@ err2 := ctx.Watch(api.WatchOptions{})
 
 :::
 
-- **[Serve mode](#serve)** starts a local development server that serves the results of the latest build. Incoming requests automatically start new builds so your web app is always up to date when you reload the page in the browser. Here's an example:
+- **[服务模式](#serve)** 启动一个本地开发服务器，该服务器提供最新构建的结果。传入的请求会自动启动新的构建，因此当您在浏览器中重新加载页面时，您的web应用程序始终是最新的。以下是一个示例：
 
 ::: code-group
 
@@ -123,7 +123,7 @@ server, err2 := ctx.Serve(api.ServeOptions{})
 
 :::
 
-- **[Rebuild mode](#rebuild)** lets you manually invoke a build. This is useful when integrating esbuild with other tools (e.g. using a custom file watcher or development server instead of esbuild's built-in ones). Here's an example:
+- **[重编译模式](#rebuild)** 允许您手动调用生成。这在将esbuild与其他工具集成时非常有用（例如，使用自定义文件观察程序或开发服务器，而不是esbuild的内置服务器）。以下是一个示例：
 
 ::: code-group
 
@@ -157,15 +157,15 @@ for i := 0; i < 5; i++ {
 
 :::
 
-These three incremental build APIs can be combined. To enable [live reloading](#live-reload) (automatically reloading the page when you edit and save a file) you'll need to enable [watch](#watch) and [serve](#serve) together on the same context.
+这三个增量构建API可以组合在一起。要启用[热更新](#live-reload)（在编辑和保存文件时自动重新加载页面），需要在同一上下文中同时启用[watch](#watch) 和 [serve](#serve)。
 
-When you are done with a context object, you can call `dispose()` on the context to wait for existing builds to finish, stop watch and/or serve mode, and free up resources.
+处理完上下文对象后，可以在上下文上调用`dispose()`以等待现有构建完成，停止监视和/或服务模式，并释放资源。
 
-The build and context APIs both take the following options:
+构建API和上下文API都采用以下选项：
 
 <div style="display:flex;justify-content:space-between;flex-wrap:wrap;">
   <div style="width:200px">
-    <p style="font-weight:bold;">General options:</p>
+    <p style="font-weight:bold;">常规选项：</p>
     <ul>
       <li><a href="#bundle">Bundle</a></li>
       <li><a href="#cancel">Cancel</a></li>
@@ -178,7 +178,7 @@ The build and context APIs both take the following options:
     </ul>
   </div>
   <div style="width:200px">
-    <p style="font-weight:bold;">Input:</p>
+    <p style="font-weight:bold;">输入：</p>
     <ul>
       <li><a href="#entry-points">Entry points</a></li>
       <li><a href="#loader">Loader</a></li>
@@ -186,7 +186,7 @@ The build and context APIs both take the following options:
     </ul>
   </div>
   <div style="width:200px">
-    <p style="font-weight:bold;">Output contents:</p>
+    <p style="font-weight:bold;">输出内容：</p>
     <ul>
       <li><a href="#banner">Banner</a></li>
       <li><a href="#charset">Charset</a></li>
@@ -198,7 +198,7 @@ The build and context APIs both take the following options:
     </ul>
   </div>
   <div style="width:200px">
-    <p style="font-weight:bold;">Output location:</p>
+    <p style="font-weight:bold;">输出位置：</p>
     <ul>
       <li><a href="#allow-overwrite">Allow overwrite</a></li>
       <li><a href="#asset-names">Asset names</a></li>
@@ -213,7 +213,7 @@ The build and context APIs both take the following options:
     </ul>
   </div>
   <div style="width:200px">
-    <p style="font-weight:bold;">Path resolution:</p>
+    <p style="font-weight:bold;">路径解决方案：</p>
     <ul>
       <li><a href="#alias">Alias</a></li>
       <li><a href="#conditions">Conditions</a></li>
@@ -227,7 +227,7 @@ The build and context APIs both take the following options:
     </ul>
   </div>
   <div style="width:200px">
-    <p style="font-weight:bold;">Transformation:</p>
+    <p style="font-weight:bold;">转换：</p>
     <ul>
       <li><a href="#jsx">JSX</a></li>
       <li><a href="#jsx-dev">JSX dev</a></li>
@@ -240,7 +240,7 @@ The build and context APIs both take the following options:
     </ul>
   </div>
   <div style="width:200px">
-    <p style="font-weight:bold;">Optimization:</p>
+    <p style="font-weight:bold;">优化：</p>
     <ul>
       <li><a href="#define">Define</a></li>
       <li><a href="#drop">Drop</a></li>
@@ -254,7 +254,7 @@ The build and context APIs both take the following options:
     </ul>
   </div>
   <div style="width:200px">
-    <p style="font-weight:bold;">Source maps:</p>
+    <p style="font-weight:bold;">源码映射：</p>
     <ul>
       <li><a href="#source-root">Source root</a></li>
       <li><a href="#sourcefile">Sourcefile</a></li>
@@ -263,14 +263,14 @@ The build and context APIs both take the following options:
     </ul>
   </div>
   <div style="width:200px">
-    <p style="font-weight:bold;">Build metadata:</p>
+    <p style="font-weight:bold;">构建元数据：</p>
     <ul>
       <li><a href="#analyze">Analyze</a></li>
       <li><a href="#metafile">Metafile</a></li>
     </ul>
   </div>
   <div style="width:200px">
-    <p style="font-weight:bold;">Logging:</p>
+    <p style="font-weight:bold;">日志：</p>
     <ul>
       <li><a href="#color">Color</a></li>
       <li><a href="#format-messages">Format messages</a></li>
