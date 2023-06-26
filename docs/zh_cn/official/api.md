@@ -283,7 +283,7 @@ for i := 0; i < 5; i++ {
 
 ### Transform
 
-This is a limited special-case of [build](#build) that transforms a string of code representing an in-memory file in an isolated environment that's completely disconnected from any other files. Common uses include minifying code and transforming TypeScript into JavaScript. Here's an example:
+这是一种有限的特殊[构建](#build)情况，它在与任何其他文件完全断开连接的隔离环境中转换表示内存中文件的代码字符串。常见的用途包括缩小代码和将TypeScript转换为JavaScript。以下是一个示例：
 
 ::: code-group
 
@@ -322,27 +322,26 @@ func main() {
 
 :::
 
-Taking a string instead of a file as input is more ergonomic for certain use cases. File system isolation has certain advantages (e.g. works in the browser, not affected by nearby `package.json` files) and certain disadvantages (e.g. can't be used with [bundling](#bundle) or [plugins](./offficial/plugins)). If your use case doesn't fit the transform API then you should use the more general [build](#build) API instead.
+对于某些用例来说，使用字符串而不是文件作为输入更符合人体工程学。文件系统隔离有某些优点（例如在浏览器中工作，不受附近的`package.json`文件的影响）和某些缺点（例如不能与[bundling](#bundle)或[plugins](./offficial/plugins)一起使用）。如果您的用例不适合转换API，那么您应该使用更通用的[build](#build) API。
 
-The transform API takes the following options:
-
+转换API采用以下选项：
 
 <div style="display:flex;justify-content:space-between;flex-wrap:wrap;">
   <div style="width:200px">
-    <p style="font-weight:bold;">General options:</p>
+    <p style="font-weight:bold;">常规选项：</p>
     <ul>
       <li><a href="#platform">Platform</a></li>
       <li><a href="#tsconfig-raw">Tsconfig raw</a></li>
     </ul>
   </div>
   <div style="width:200px">
-    <p style="font-weight:bold;">Input:</p>
+    <p style="font-weight:bold;">输入：</p>
     <ul>
       <li><a href="#loader">Loader</a></li>
     </ul>
   </div>
   <div style="width:200px">
-    <p style="font-weight:bold;">Output contents:</p>
+    <p style="font-weight:bold;">输出内容：</p>
     <ul>
       <li><a href="#banner">Banner</a></li>
       <li><a href="#charset">Charset</a></li>
@@ -353,7 +352,7 @@ The transform API takes the following options:
     </ul>
   </div>
   <div style="width:200px">
-    <p style="font-weight:bold;">Transformation:</p>
+    <p style="font-weight:bold;">转换：</p>
     <ul>
       <li><a href="#jsx">JSX</a></li>
       <li><a href="#jsx-dev">JSX dev</a></li>
@@ -366,7 +365,7 @@ The transform API takes the following options:
     </ul>
   </div>
   <div style="width:200px">
-    <p style="font-weight:bold;">Optimization:</p>
+    <p style="font-weight:bold;">优化：</p>
     <ul>
       <li><a href="#define">Define</a></li>
       <li><a href="#drop">Drop</a></li>
@@ -379,7 +378,7 @@ The transform API takes the following options:
     </ul>
   </div>
   <div style="width:200px">
-    <p style="font-weight:bold;">Source maps:</p>
+    <p style="font-weight:bold;">源码映射：</p>
     <ul>
       <li><a href="#source-root">Source root</a></li>
       <li><a href="#sourcefile">Sourcefile</a></li>
@@ -388,7 +387,7 @@ The transform API takes the following options:
     </ul>
   </div>
   <div style="width:200px">
-    <p style="font-weight:bold;">Logging:</p>
+    <p style="font-weight:bold;">日志：</p>
     <ul>
       <li><a href="#color">Color</a></li>
       <li><a href="#format-messages">Format messages</a></li>
@@ -399,13 +398,13 @@ The transform API takes the following options:
   </div>
 </div>
 
-### JS-specific details
+### JS具体细节
 
-The JS API for esbuild comes in both asynchronous and synchronous flavors. The [asynchronous API](#js-async) is recommended because it works in all environments and it's faster and more powerful. The [synchronous API](#js-sync) only works in node and can only do certain things, but it's sometimes necessary in certain node-specific situations. In detail:
+esbuild的JS API有异步和同步两种风格。建议使用[异步 API](#js-async)，因为它适用于所有环境，而且速度更快、功能更强大。[同步 API](#js-sync)只在节点中工作，只能做某些事情，但有时在特定于节点的情况下是必要的。详细说明：
 
-#### Async API
+#### 异步 API
 
-Asynchronous API calls return their results using a promise. Note that you'll likely have to use the `.mjs` file extension in node due to the use of the `import` and top-level `await` keywords:
+异步API调用使用promise返回结果。注意，由于使用了`import`和顶级`await`关键字，您可能不得不在节点中使用`.mjs`文件扩展名：
 
 ```js
 import * as esbuild from 'esbuild'
@@ -414,20 +413,20 @@ let result1 = await esbuild.transform(code, options)
 let result2 = await esbuild.build(options)
 ```
 
-Pros:
+优点：
 
-- You can use [plugins](./plugins) with the asynchronous API
-- The current thread is not blocked so you can perform other work in the meantime
-- You can run many simultaneous esbuild API calls concurrently which are then spread across all available CPUs for maximum performance
+- 您可以将[plugins](./plugins)与异步API一起使用
+- 当前线程未被阻止，因此您可以在此期间执行其他工作
+- 您可以同时运行多个esbuild API调用，然后这些调用分布在所有可用CPU上，以获得最佳性能
 
-Cons:
+缺点：
 
-- Using promises can result in messier code, especially in CommonJS where [top-level await](https://v8.dev/features/top-level-await) is not available
-- Doesn't work in situations that must be synchronous such as within [`require.extensions`](https://nodejs.org/api/modules.html#requireextensions)
+- 使用promise可能会导致更混乱的代码，尤其是在CommonJS中[顶层 await](https://v8.dev/features/top-level-await)不可用
+- 在必须同步的情况下不起作用，例如在[`require.extensions`](https://nodejs.org/api/modules.html#requireextensions)中
 
-#### Sync API
+#### 同步 API
 
-Synchronous API calls return their results inline:
+同步API调用以内联方式返回结果：
 
 ```js
 let esbuild = require('esbuild')
@@ -436,26 +435,34 @@ let result1 = esbuild.transformSync(code, options)
 let result2 = esbuild.buildSync(options)
 ```
 
-Pros:
+缺点：
 
-- Avoiding promises can result in cleaner code, especially when [top-level await](https://v8.dev/features/top-level-await) is not available
-- Works in situations that must be synchronous such as within [`require.extensions`](https://nodejs.org/api/modules.html#requireextensions)
+-您不能将[plugins](./plugins)与同步API一起使用，因为插件是异步的
 
-Cons:
+-它阻塞了当前线程，因此在此期间无法执行其他工作
 
-- You can't use [plugins](./plugins) with the synchronous API since plugins are asynchronous
-- It blocks the current thread so you can't perform other work in the meantime
-- Using the synchronous API prevents esbuild from parallelizing esbuild API calls
+-使用同步API可以防止esbuild并行esbuild-API调用
 
-### In the browser
+优点：
 
-The esbuild API can also run in the browser using WebAssembly in a Web Worker. To take advantage of this you will need to install the `esbuild-wasm` package instead of the `esbuild` package:
+- 避免承诺可能会导致更干净的代码，尤其是当[top-level await](https://v8.dev/features/top-level-await)不可用
+- 在必须同步的情况下工作，例如在[`require.extensions`](https://nodejs.org/api/modules.html#requireextensions)中
+
+缺点：
+
+- 您不能将[plugins](./plugins)与同步API一起使用，因为插件是异步的
+- 它阻塞了当前线程，因此在此期间无法执行其他工作
+- 使用同步API可以防止esbuild并行esbuild-API调用
+
+### 在浏览器中
+
+esbuild API还可以在Web Worker中使用WebAssembly在浏览器中运行。要利用这一点，您将需要安装`esbuild-wasm`包，而不是`esbuild`包：
 
 ```bash
 npm install esbuild-wasm
 ```
 
-The API for the browser is similar to the API for node except that you need to call `initialize()` first, and you need to pass the URL of the WebAssembly binary. The synchronous versions of the API are also not available. Assuming you are using a bundler, that would look something like this:
+浏览器的API与节点的API类似，只是需要先调用`initialize()`，并且需要传递WebAssembly二进制文件的URL。API的同步版本也不可用。假设您使用的是打包器，它看起来是这样的：
 
 ```js
 import * as esbuild from 'esbuild-wasm'
@@ -468,9 +475,9 @@ let result1 = await esbuild.transform(code, options)
 let result2 = esbuild.build(options)
 ```
 
-If you're already running this code from a worker and don't want `initialize` to create another worker, you can pass `worker: false` to it. Then it will create a WebAssembly module in the same thread as the thread that calls `initialize`.
+如果您已经从工作线程运行此代码，并且不希望 `initialize`创建另一个工作线程，则可以将`worker: false`传递给它。然后，它将在与调用`initialize`的线程相同的线程中创建WebAssembly模块。
 
-You can also use esbuild's API as a script tag in a HTML file without needing to use a bundler by loading the `lib/browser.min.js` file with a `<script>` tag. In this case the API creates a global called esbuild that holds the API object:
+您也可以将esbuild的API用作HTML文件中的脚本标记，而无需使用绑定器，方法是加载带有`<script>`标记的`lib/browser.min.js`文件。在这种情况下，API会创建一个名为esbuild的全局，其中包含API对象：
 
 ```html
 <script src="./node_modules/esbuild-wasm/lib/browser.min.js"></script>
@@ -483,7 +490,7 @@ You can also use esbuild's API as a script tag in a HTML file without needing to
 </script>
 ```
 
-If you want to use this API with ECMAScript modules, you should import the `esm/browser.min.js` file instead:
+如果要将此API与ECMAScript模块一起使用，则应导入`esm/browser.min.js`文件：
 
 ```html
 <script type="module">
