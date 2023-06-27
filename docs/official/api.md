@@ -501,7 +501,7 @@ If you want to use this API with ECMAScript modules, you should import the `esm/
 
 ### Bundle
 
-> Supported by: Build
+> Supported by: [Build](#build)
 
 To bundle a file means to inline any imported dependencies into the file itself. This process is recursive so dependencies of dependencies (and so on) will also be inlined. By default esbuild will not bundle the input files. Bundling must be explicitly enabled like this:
 
@@ -565,7 +565,7 @@ The way to work around this issue is to mark the package containing this problem
 
 Some bundlers such as [Webpack](https://webpack.js.org/) try to support this by including all potentially-reachable files in the bundle and then emulating a file system at run-time. However, run-time file system emulation is out of scope and will not be implemented in esbuild. If you really need to bundle code that does this, you will likely need to use another bundler instead of esbuild.
 
-### Non-analyzable imports
+### Cancel
 
 > Supported by: [Build](#build)
 
