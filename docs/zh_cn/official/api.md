@@ -504,13 +504,13 @@ let result2 = esbuild.build(options)
 </script>
 ```
 
-## General options
+## 常规选项
 
-### Bundle
+### 打包
 
-> Supported by: Build
+> 支持: [Build](#build)
 
-To bundle a file means to inline any imported dependencies into the file itself. This process is recursive so dependencies of dependencies (and so on) will also be inlined. By default esbuild will not bundle the input files. Bundling must be explicitly enabled like this:
+打包文件意味着将任何导入的依赖项内联到文件本身中。这个过程是递归的，所以依赖项的依赖项（等等）也将被内联。默认情况下，esbuild不会打包输入文件。打包必须显式启用，如下所示：
 
 ::: code-group
 
@@ -548,35 +548,35 @@ func main() {
 
 :::
 
-Refer to the [getting started guide](./getting-started/#your-first-bundle) for an example of bundling with real-world code.
+参考[开始入门](./getting-started/#your-first-bundle)的现实代码打包的例子。
 
-Note that bundling is different than file concatenation. Passing esbuild multiple input files with bundling enabled will create multiple separate bundles instead of joining the input files together. To join a set of files together with esbuild, import them all into a single entry point file and bundle just that one file with esbuild.
+注意，打包不同于文件串联。在启用打包的情况下传递esbuild多个输入文件将创建多个单独的分包，而不是将输入文件连接在一起。要将一组文件与esbuild连接在一起，请将它们全部导入到一个入口点文件中，并将该文件与esuild打包在一起。
 
-### Non-analyzable imports
+### 不分析的导入
 
-Bundling with esbuild only works with statically-defined imports (i.e. when the import path is a string literal). Imports that are defined at run-time (i.e. imports that depend on run-time code evaluation) are not bundled, since bundling is a compile-time operation. For example:
+与esbuild打包仅适用于静态定义的导入（即，当导入路径是字符串文字时）。在运行时定义的导入（即依赖于运行时代码评估的导入）不会打包，因为打包是一种编译时操作。例如：
 
 ```js
-// Analyzable imports (will be bundled by esbuild)
+// 分析导入（将会被esbuild打包）
 import 'pkg';
 import('pkg');
 require('pkg');
 
-// Non-analyzable imports (will not be bundled by esbuild)
+// 不分析导入（不会被esbuild打包）
 import(`pkg/${foo}`);
 require(`pkg/${foo}`);
 ['pkg'].map(require);
 ```
 
-The way to work around this issue is to mark the package containing this problematic code as [external](#external) so that it's not included in the bundle. You will then need to ensure that a copy of the external package is available to your bundled code at run-time.
+解决此问题的方法是将包含此问题代码的包标记为[external](#external)，这样它就不会包含在打包中。然后，您需要确保在运行时打包代码可以使用外部包的副本。
 
-Some bundlers such as [Webpack](https://webpack.js.org/) try to support this by including all potentially-reachable files in the bundle and then emulating a file system at run-time. However, run-time file system emulation is out of scope and will not be implemented in esbuild. If you really need to bundle code that does this, you will likely need to use another bundler instead of esbuild.
+一些打包器，如[Webpack](https://webpack.js.org/)尝试通过将所有可能访问的文件包括在捆绑包中，然后在运行时模拟文件系统来支持这一点。但是，运行时文件系统仿真超出了范围，将不会在esbuild中实现。如果您真的需要打包这样做的代码，那么您可能需要使用另一个打包器而不是esbuild。
 
-### Non-analyzable imports
+### 取消
 
-> Supported by: [Build](#build)
+> 支持: [Build](#build)
 
-If you are using [rebuild](#rebuild) to manually invoke incremental builds, you may want to use this cancel API to end the current build early so that you can start a new one. You can do that like this:
+如果您正在使用[rebuild](#rebuild)手动调用增量构建，您可能希望使用此取消API提前结束当前构建，以便可以启动新的构建。你可以这样做：
 
 :::code-group
 
@@ -646,7 +646,7 @@ func main() {
 
 :::
 
-Make sure to wait until the cancel operation is done before starting a new build (i.e. `await` the returned promise when using JavaScript), otherwise the next [rebuild](#rebuild) will give you the just-canceled build that still hasn't ended yet. Note that plugin [on-end callbacks](./plugins#on-end) will still be run regardless of whether or not the build was canceled.
+请确保等到取消操作完成后再开始新的构建（即，在使用JavaScript时等待返回的promise），否则下一次[重建](#rebuild)将为您提供尚未结束的刚刚取消的构建。请注意，无论构建是否被取消，插件[持续回调](./plugins#on-end)仍将运行。
 
 ### Live reload
 
