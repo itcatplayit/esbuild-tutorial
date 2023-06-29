@@ -40,11 +40,11 @@ Go的另一个好处是，它可以将东西紧凑地存储在内存中，这使
 
 这些因素中的每一个都只是一个显著的加速，但它们加在一起可以产生比当今常用的其他打包器快几个数量级的打包器。
 
-## Benchmark details
+## Benchmark details 性能测试详细信息
 
-Here are the details about each benchmark:
+以下是关于每个性能测试的详细信息：
 
-<figcaption style="text-align:center;margin:10px;">JavaScript benchmark</figcaption>
+<figcaption style="text-align:center;margin:10px;">JavaScript 性能测试</figcaption>
 <figure class="bench" style="position:relative;max-width:800px;height:110px;font-size:13px;line-height:20px;">
   <div style="position:absolute;left:120px;top:0;right:0;height:80px;">
     <div style="position:absolute;left:0.00%;top:0;width:1px;bottom:0;background:rgba(127,127,127,0.25);"></div>
@@ -82,7 +82,7 @@ Here are the details about each benchmark:
   </div>
 </figure>
 
-This benchmark approximates a large JavaScript codebase by duplicating the [three.js](https://github.com/mrdoob/three.js) library 10 times and building a single bundle from scratch, without any caches. The benchmark can be run with `make bench-three` in the [esbuild repo](https://github.com/evanw/esbuild).
+这个性能测试通过复制[three.js](https://github.com/mrdoob/three.js)包来近似于一个大型JavaScript代码库10次，并从头开始构建单个打包，没有任何缓存。性能测试可以在[esbuild 仓库](https://github.com/evanw/esbuild)中使用`make bench-three`运行得到。
 
 | **Bundler**  | **Time**    |  **Relative slowdown** | **Absolute speed** | **Output size** |
 | ------------- | :-----------: | :-----------: | :-----------: | ----: |
@@ -91,9 +91,9 @@ This benchmark approximates a large JavaScript codebase by duplicating the [thre
 | rollup + terser | 	32.07s | 	84x | 	17.1 kloc/s | 	5.81mb | 
 | webpack 5 | 	39.70s | 	104x | 	13.8 kloc/s | 	5.84mb | 
 
-Each time reported is the best of three runs. I'm running esbuild with `--bundle --minify --sourcemap`. I used the [`@rollup/plugin-terser`](https://github.com/rollup/plugins/tree/master/packages/terser) plugin because Rollup itself doesn't support minification. Webpack 5 uses `--mode=production --devtool=sourcemap`. Parcel 2 uses the default options. Absolute speed is based on the total line count including comments and blank lines, which is currently 547,441. The tests were done on a 6-core 2019 MacBook Pro with 16gb of RAM and with [macOS Spotlight](https://en.wikipedia.org/wiki/Spotlight_(software)) disabled.
+每次报告都是三次运行中最好的一次。我正在使用`--bundle--minimy--sourcemap`运行esbuild。我使用了[`@rollup/plugin-terser`](https://github.com/rollup/plugins/tree/master/packages/terser)插件，因为rollup本身不支持缩小。Webpack 5使用`--mode=production --devtool=sourcemap`。Parcel 2使用默认选项。绝对速度基于包括评论和空行在内的总行数，目前为547,441。测试是在一款6核2019款MacBook Pro上进行的，该机型的RAM为16gb，[macOS Spotlight](https://en.wikipedia.org/wiki/Spotlight_(software))处于禁用状态。
 
-<figcaption style="text-align:center;margin:10px;">TypeScript benchmark</figcaption>
+<figcaption style="text-align:center;margin:10px;">TypeScript 性能测试</figcaption>
 <figure class="bench" style="position:relative;max-width:800px;height:90px;font-size:13px;line-height:20px;">
   <div style="position:absolute;left:120px;top:0;right:0;height:60px;">
     <div style="position:absolute;left:0.00%;top:0;width:1px;bottom:0;background:rgba(127,127,127,0.25);"></div>
@@ -125,7 +125,7 @@ Each time reported is the best of three runs. I'm running esbuild with `--bundle
   </div>
 </figure>
 
-This benchmark uses the old [Rome](https://github.com/rome/tools) code base (prior to their Rust rewrite) to approximate a large TypeScript codebase. All code must be combined into a single minified bundle with source maps and the resulting bundle must work correctly. The benchmark can be run with `make bench-rome` in the [esbuild repo](https://github.com/evanw/esbuild).
+这个性能测试使用旧的[Rome](https://github.com/rome/tools)代码库（在Rust重写之前）来近似大型TypeScript代码库。所有代码必须组合到一个具有源码映射的缩小捆绑包中，并且生成的捆绑包必须正常工作。性能测试可以在[esbuild 仓库](https://github.com/evanw/esbuild)中使用`make bench-rome`运行得到。
 
 | **Bundler**  | **Time**    |  **Relative slowdown** | **Absolute speed** | **Output size** |
 | ------------- | :-----------: | :-----------: | :-----------: | ----: |
@@ -133,38 +133,38 @@ This benchmark uses the old [Rome](https://github.com/rome/tools) code base (pri
 | parcel | 2	| 8.18s	| 82x	| 16.1 kloc/s	| 0.97mb |
 | webpack | 5	| 15.96s	| 160x	| 8.3 kloc/s	| 1.27mb | 
 
+每次报告都是三次运行中最好的一次。我正在使用`--bundle --minify --sourcemap --platform=node`运行esbuild。Webpack 5使用`transpileOnly: true`和`--mode=production --devtool=sourcemap`的ts加载程序。Parcel 2使用了`package.json`中的`"engines": "node"`。绝对速度基于包括注释和空行在内的总行数，目前为131,836。测试是在一款6核2019款MacBook Pro上进行的，该机型的RAM为16gb，[macOS Spotlight](https://en.wikipedia.org/wiki/Spotlight_(software))处于禁用状态。
 
-Each time reported is the best of three runs. I'm running esbuild with `--bundle --minify --sourcemap --platform=node`. Webpack 5 uses [`ts-loader`](https://github.com/TypeStrong/ts-loader) with `transpileOnly: true` and `--mode=production --devtool=sourcemap`. Parcel 2 uses `"engines": "node"` in `package.json`. Absolute speed is based on the total line count including comments and blank lines, which is currently 131,836. The tests were done on a 6-core 2019 MacBook Pro with 16gb of RAM and with [macOS Spotlight](https://en.wikipedia.org/wiki/Spotlight_(software)) disabled.
+结果不包括Rollup，因为由于与TypeScript编译有关的原因，我无法使其工作。我尝试了[`@rollup/plugin-typescript`](https://github.com/rollup/plugins/tree/master/packages/typescript)，但你不能禁用类型检查，我也尝试了[`@rollup/plugin-sucrase`](https://github.com/rollup/plugins/tree/master/packages/sucrase)，但无法提供`tsconfig.json`文件（这是正确路径解析所必需的）。
 
-The results don't include Rollup because I couldn't get it to work for reasons relating to TypeScript compilation. I tried [`@rollup/plugin-typescript`](https://github.com/rollup/plugins/tree/master/packages/typescript) but you can't disable type checking, and I tried [`@rollup/plugin-sucrase`](https://github.com/rollup/plugins/tree/master/packages/sucrase) but there's no way to provide a `tsconfig.json` file (which is required for correct path resolution).
+## 即将到来的路线图
 
-## Upcoming roadmap
+这些功能已经在进行中，并且是首要任务：
 
-These features are already in progress and are first priority:
+- 代码拆分 ([#16](https://github.com/evanw/esbuild/issues/16), [文档](./api#spliting))
+- CSS内容类型 ([#20](https://github.com/evanw/esbuild/issues/20), [文档](./content-types#css))
+- 插件API ([#111](https://github.com/evanw/esbuild/issues/111))
 
-- Code splitting ([#16](https://github.com/evanw/esbuild/issues/16), [docs](./api#spliting))
-- CSS content type ([#20](https://github.com/evanw/esbuild/issues/20), [docs](./content-types#css))
-- Plugin API ([#111](https://github.com/evanw/esbuild/issues/111))
+这些是潜在的未来特征，但可能不会发生，也可能在更有限的范围内发生：
 
-These are potential future features but may not happen or may happen to a more limited extent:
 
-- HTML content type ([#31](https://github.com/evanw/esbuild/issues/31))
-- Lowering to ES5 ([#297](https://github.com/evanw/esbuild/issues/297))
-- Bundling top-level await ([#253](https://github.com/evanw/esbuild/issues/253))
+- HTML内容类型 ([#31](https://github.com/evanw/esbuild/issues/31))
+- 下降至ES5 ([#297](https://github.com/evanw/esbuild/issues/297))
+- 打包顶层 await ([#253](https://github.com/evanw/esbuild/issues/253))
 
-After that point, I will consider esbuild to be relatively complete. I'm planning for esbuild to reach a mostly stable state and then stop accumulating more features. This will involve saying "no" to requests for adding major features to esbuild itself. I don't think esbuild should become an all-in-one solution for all frontend needs. In particular, I want to avoid the pain and problems of the "webpack config" model where the underlying tool is too flexible and usability suffers.
+在这一点之后，我将认为esbuild是相对完整的。我计划让esbuild达到一个基本稳定的状态，然后停止积累更多的功能。这将涉及对向esbuild本身添加主要功能的请求说“不”。我不认为esbuild应该成为满足所有前端需求的一体化解决方案。特别是，我想避免“webpack-config”模型带来的痛苦和问题，即底层工具过于灵活，易用性受到影响。
 
-For example, I am not planning to include these features in esbuild's core itself:
+例如，我不打算在esbuild的核心中包含这些功能：
 
-- Support for other frontend languages (e.g. [Elm](https://elm-lang.org/), [Svelte](https://svelte.dev/), [Vue](https://vuejs.org/), [Angular](https://angular.io/))
-- TypeScript type checking (just run `tsc` separately)
-- An API for custom AST manipulation
-- Hot-module reloading
-- Module federation
+- 支持其他前端语言 (例如：[Elm](https://elm-lang.org/), [Svelte](https://svelte.dev/), [Vue](https://vuejs.org/), [Angular](https://angular.io/))
+- TypeScript类型检查 (只需单独运行`tsc`)
+- 用于自定义AST操作的API
+- 热模块重新加载
+- 模块联合
 
-I hope that the extensibility points I'm adding to esbuild ([plugins](./plugins/) and the [API](./api/)) will make esbuild useful to include as part of more customized build workflows, but I'm not intending or expecting these extensibility points to cover all use cases. If you have very custom requirements then you should be using other tools. I also hope esbuild inspires other build tools to dramatically improve performance by overhauling their implementations so that everyone can benefit, not just those that use esbuild.
+我希望我添加到esbuild中的扩展点（[plugins](./plugins/)和[API](./api/)）将使esbuilt成为更定制的构建工作流的一部分，但我并不打算或期望这些扩展点涵盖所有用例。如果您有非常自定义的需求，那么您应该使用其他工具。我还希望esbuild能激励其他构建工具通过彻底修改它们的实现来显著提高性能，这样每个人都能从中受益，而不仅仅是那些使用esbuild的人。
 
-I am planning to continue to maintain everything in esbuild's existing scope even after esbuild reaches stability. This means implementing support for newly-released JavaScript and TypeScript syntax features, for example.
+即使在esbuild达到稳定之后，我也计划继续维护esbuild现有范围内的所有内容。例如，这意味着实现对新发布的JavaScript和TypeScript语法功能的支持。
 
 ## Production readiness
 
