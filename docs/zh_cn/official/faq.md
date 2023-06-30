@@ -166,54 +166,54 @@ Go的另一个好处是，它可以将东西紧凑地存储在内存中，这使
 
 即使在esbuild达到稳定之后，我也计划继续维护esbuild现有范围内的所有内容。例如，这意味着实现对新发布的JavaScript和TypeScript语法功能的支持。
 
-## Production readiness
+## 生产准备情况
 
-This project has not yet hit version 1.0.0 and is still in active development. That said, it is far beyond the alpha stage and is pretty stable. I think of it as a late-stage beta. For some early-adopters that means it's good enough to use for real things. Some other people think this means esbuild isn't ready yet. This section doesn't try to convince you either way. It just tries to give you enough information so you can decide for yourself whether you want to use esbuild as your bundler.
+该项目尚未达到1.0.0版本，仍在积极开发中。也就是说，它远远超出了阿尔法阶段，而且相当稳定。我认为这是一个后期测试版。对于一些早期采用者来说，这意味着它足够好，可以用于实际应用。其他一些人认为这意味着esbuild还没有准备好。这一部分并没有试图说服你。它只是试图给你足够的信息，这样你就可以自己决定是否要使用esbuild作为打包器。
 
-Some data points:
+一些数据点：
 
-- **Used by other projects**
+- **在其他工程中被使用**
 
-  The API is already being used as a library within many other developer tools. For example, [Vite](https://vitejs.dev/) and [Snowpack](https://www.snowpack.dev/) are using esbuild to transform TypeScript into JavaScript and [Amazon CDK](https://aws.amazon.com/cdk/) (Cloud Development Kit) and [Phoenix](https://www.phoenixframework.org/) are using esbuild to bundle code.
+  API已经在许多其他开发工具中用作库。例如，[Vite](https://vitejs.dev/)和[Snowpack](https://www.snowpack.dev/)正在使用esbuild将TypeScript转换为JavaScript和[Amazon CDK](https://aws.amazon.com/cdk/)（云开发工具包）和[Phoenix](https://www.phoenixframework.org/)正在使用esbuild打包代码。
 
-- **API stability**
+- **API稳定性**
 
-  Even though esbuild's version is not yet 1.0.0, effort is still made to keep the API stable. Patch versions are intended for backwards-compatible changes and minor versions are intended for backwards-incompatible changes. If you plan to use esbuild for something real, you should either pin the exact version (maximum safety) or pin the major and minor versions (only accept backwards-compatible upgrades).
+  尽管esbuild的版本还不是1.0.0，但仍在努力保持API的稳定性。修补程序版本用于向后兼容的更改，次要版本用于向后不兼容的更改。如果你计划将esbuild用于真实的东西，你应该确定确切的版本（最大限度地安全），或者确定主要和次要版本（只接受向后兼容的升级）。
 
-- **Only one main developer**
+- **只有一个主要开发者**
 
-  This tool is primarily built by [me](https://github.com/evanw). For some people this is fine, but for others this means esbuild is not a suitable tool for their organization. That's ok with me. I'm building esbuild because I find it fun to build and because it's the tool I'd want to use. I'm sharing it with the world because there are others that want to use it too, because the feedback makes the tool itself better, and because I think it will inspire the ecosystem to make better tools.
+  此工具主要由[我](https://github.com/evanw)构建。对一些人来说，这很好，但对另一些人来说这意味着esbuild不适合他们的组织。这对我来说没关系。我正在构建esbuild，因为我觉得构建它很有趣，而且它是我想使用的工具。我之所以与世界分享它，是因为还有其他人也想使用它，因为反馈使工具本身变得更好，因为我认为它将激励生态系统制造更好的工具。
 
-- **Not always open to scope expansion**
+- **并不总是对范围扩展开放**
 
-  I'm not planning on including major features that I'm not interested in building and/or maintaining. I also want to limit the project's scope so it doesn't get too complex and unwieldy, both from an architectural perspective, a testing and correctness perspective, and from a usability perspective. Think of esbuild as a "linker" for the web. It knows how to transform and bundle JavaScript and CSS. But the details of how your source code ends up as plain JavaScript or CSS may need to be 3rd-party code.
+  我不打算包括我对构建和/或维护不感兴趣的主要功能。我还想限制项目的范围，这样它就不会变得太复杂和笨拙，无论是从体系结构的角度、测试和正确性的角度，还是从可用性的角度。将esbuild视为网络的“链接器”。它知道如何转换和打包JavaScript和CSS。但是，源代码最终如何成为普通JavaScript或CSS的细节可能需要是第三方代码。
 
-  I'm hoping that [plugins](./plugins/) will allow the community to add major features (e.g. WebAssembly import) without needing to contribute to esbuild itself. However, not everything is exposed in the plugin API and it may be the case that it's not possible to add a particular feature to esbuild that you may want to add. This is intentional; esbuild is not meant to be an all-in-one solution for all frontend needs.
+  我希望[插件](./plugins/)将允许社区添加主要功能（例如WebAssembly导入），而无需为esbuild本身做出贡献。然而，插件API中并没有公开所有内容，可能无法向esbuild添加您可能想要添加的特定功能。这是故意的；esbuild并不是一个满足所有前端需求的一体化解决方案。
 
-## Anti-virus software
+## 防病毒软件
 
-Since esbuild is written in native code, anti-virus software can sometimes incorrectly flag it as a virus. *This does not mean esbuild is a virus*. I do not publish malicious code and I take supply chain security very seriously.
+由于esbuild是用原生代码编写的，反病毒软件有时会错误地将其标记为病毒*这并不意味着esbuild是一种病毒*。我不发布恶意代码，我非常重视供应链安全。
 
-Virtually all of esbuild's code is first-party code except for [one dependency](https://github.com/evanw/esbuild/blob/main/go.mod) on Google's set of supplemental Go packages. My development work is done on different machine that is isolated from the one I use to publish builds. I have done additional work to ensure that esbuild's published builds are completely reproducible and after every release, published builds are [automatically compared](https://github.com/evanw/esbuild/blob/main/.github/workflows/validate.yml) to ones locally-built in an unrelated environment to ensure that they are bitwise identical (i.e. that the Go compiler itself has not been compromised). You can also build esbuild from source yourself and compare your build artifacts to the published ones to independently verify this.
+几乎所有esbuild的代码都是第一方代码，除了[一个依赖项](https://github.com/evanw/esbuild/blob/main/go.mod)在谷歌的一套补充Go软件包上。我的开发工作是在不同的机器上完成的，这台机器与我用来发布构建的机器是隔离的。我做了额外的工作来确保esbuild发布的构建是完全可复制的，并且在每次发布后，都会[自动比较](https://github.com/evanw/esbuild/blob/main/.github/workflows/validate.yml)发布的构建到在不相关的环境中本地构建的，以确保它们在位上相同（即Go编译器本身没有受到损害）。您还可以自己从源代码构建esbuild，并将您的构建工件与已发布的工件进行比较，以独立验证这一点。
 
-Having to deal with false-positives is an unfortunate reality of using anti-virus software. Here are some possible workarounds if your anti-virus won't let you use esbuild:
+在使用反病毒软件时，不得不处理误报是一个不幸的现实。如果您的防病毒软件不允许您使用esbuild，以下是一些可能的解决方案：
 
-- Ignore your anti-virus software and remove esbuild from quarantine
-- Report the specific esbuild native executable as a false-positive to your anti-virus software vendor
-- Use [`esbuild-wasm`](./getting-started#install-the-wasm-version) instead of `esbuild` to bypass your anti-virus software (which likely won't flag WebAssembly files the same way it flags native executables)
-- Use another build tool instead of esbuild
+- 忽略您的防病毒软件并从隔离中删除esbuild
+- 向反病毒软件供应商报告特定的esbuild本机可执行文件为假阳性
+- 使用[`esbuild wasm`](./getting-started#install-the-wasm-version)而不是`esbuild`来绕过防病毒软件（它可能不会像标记本机可执行文件那样标记WebAssembly文件）
+- 使用其他生成工具而不是esbuild
 
-## Minified newlines
+## 缩小换行符
 
-People are sometimes surprised that esbuild's minifier typically changes the character escape sequence `\n` within JavaScript strings into a newline character in a template literal. But this is intentional. **This is not a bug with esbuild**. The job of a minifier is to generate as compact an output as possible that's equivalent to the input. The character escape sequence `\n` is two bytes long while a newline character is one byte long.
+人们有时会感到惊讶的是，esbuild的minifier通常会将JavaScript字符串中的字符转义序列`\n`更改为模板文本中的换行符。但这是故意的**这不是esbuild的bug**。minifier的工作是生成尽可能紧凑的与输入等效的输出。字符转义序列`\n`长两个字节，而换行符长一个字节。
 
-For example, this code is 21 bytes long:
+例如，此代码的长度为21字节：
 
 ```js
 var text="a\nb\nc\n";
 ```
 
-While this code is 18 bytes long:
+而此代码有18个字节长：
 
 ```js
 var text=`a
@@ -222,4 +222,4 @@ c
 `;
 ```
 
-So the second code is fully minified while the first one isn't. Minifying code does not mean putting it all on one line. Instead, minifying code means generating equivalent code that uses as few bytes as possible. In JavaScript, an untagged template literal is equivalent to a string literal, so esbuild is doing the correct thing here.
+因此，第二个代码是完全缩小的，而第一个代码不是。最小化代码并不意味着将所有代码放在一行。相反，缩小代码意味着生成使用尽可能少的字节的等效代码。在JavaScript中，未标记的模板文本相当于字符串文本，因此esbuild在这里做的是正确的。
