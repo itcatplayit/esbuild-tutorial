@@ -648,15 +648,15 @@ func main() {
 
 请确保等到取消操作完成后再开始新的构建（即，在使用JavaScript时等待返回的promise），否则下一次[重建](#rebuild)将为您提供尚未结束的刚刚取消的构建。请注意，无论构建是否被取消，插件[持续回调](./plugins#on-end)仍将运行。
 
-### Live reload
+### 实时重新加载
 
-> Supported by: [Build](#build)
+> 支持: [Build](#build)
 
-Live reload is an approach to development where you have your browser open and visible at the same time as your code editor. When you edit and save your source code, the browser automatically reloads and the reloaded version of the app contains your changes. This means you can iterate faster because you don't have to manually switch to your browser, reload, and then switch back to your code editor after every change. It's very helpful when changing CSS, for example.
+实时重新加载是一种开发方法，在这种方法中，您可以打开浏览器并与代码编辑器同时可见。当您编辑并保存源代码时，浏览器会自动重新加载，并且重新加载的应用程序版本包含您的更改。这意味着您可以更快地迭代，因为您不必手动切换到浏览器，重新加载，然后在每次更改后切换回代码编辑器。例如，它在更改CSS时非常有用。
 
-There is no esbuild API for live reloading directly. Instead, you can construct live reloading by combining [watch mode](#watch) (to automatically start a build when you edit and save a file) and [serve mode](#serve) (to serve the latest build, but block until it's done) plus a small bit of client-side JavaScript code that you add to your app only during development.
+没有esbuild API可直接用于实时重新加载。相反，您可以通过组合[监听模式](#watch)（在编辑和保存文件时自动启动构建）和[服务模式](#watch)（为最新构建提供服务，但在完成之前进行阻止）以及仅在开发过程中添加到应用程序中的少量客户端JavaScript代码来构建实时重载。
 
-The first step is to enable [watch](#watch) and [serve](#serve) together:
+第一步是实现[watch](#watch)和[serve](#serve)的结合：
 
 :::code-group
 
@@ -712,29 +712,29 @@ func main() {
 
 :::
 
-The second step is to add some code to your JavaScript that subscribes to the `/esbuild` [server-sent event](https://developer.mozilla.org/en-US/docs/Web/API/Server-sent_events/Using_server-sent_events) source. When you get the `change` event, you can reload the page to get the latest version of the app. You can do this in a single line of code:
+第二步是向JavaScript中添加一些代码，这些代码订阅`/ebuild`[服务器发送的事件源](https://developer.mozilla.org/en-US/docs/Web/API/Server-sent_events/Using_server-sent_events)。当您获得`change`事件时，您可以重新加载页面以获取应用程序的最新版本。您可以在一行代码中完成此操作：
 
 ```js
 new EventSource('/esbuild').addEventListener('change', () => location.reload())
 ```
 
-That's it! If you load your app in the browser, the page should now automatically reload when you edit and save a file (assuming there are no build errors).
+就是这样！如果你在浏览器中加载应用程序，那么当你编辑和保存文件时，页面现在应该会自动重新加载（假设没有生成错误）。
 
-This should only be included during development, and should not be included in production. One way to remove this code in production is to guard it with an if statement such as `if (!window.IS_PRODUCTION)` and then use [define](#define) to set `window.IS_PRODUCTION` to `true` in production.
+这只应包括在开发过程中，而不应包括在生产中。在生产中删除此代码的一种方法是使用if语句（如`if (!window.IS_PRODUCTION)`）保护它，然后在生产中使用[define](#define)将`window.IS_PRODUCTION`设置为`true`。
 
-#### Live reload caveats
+#### 实时重新加载注意事项
 
-Implementing live reloading like this has a few known caveats:
+像这样实现实时重载有几个已知的注意事项：
 
-- These events only trigger when esbuild's output changes. They do not trigger when files unrelated to the build being watched are changed. If your HTML file references other files that esbuild doesn't know about and those files are changed, you can either manually reload the page or you can implement your own live reloading infrastructure instead of using esbuild's built-in behavior.
+- 这些事件仅在esbuild的输出更改时触发。当与正在监视的生成无关的文件发生更改时，它们不会触发。如果您的HTML文件引用了esbuild不知道的其他文件，并且这些文件已更改，您可以手动重新加载页面，也可以实现自己的实时重新加载基础结构，而不是使用esbuild的内置行为。
 
-- The `EventSource` API is supposed to automatically reconnect for you. However, there's [a bug in Firefox](https://bugzilla.mozilla.org/show_bug.cgi?id=1809332) that breaks this if the server is ever temporarily unreachable. Workarounds are to use any other browser, to manually reload the page if this happens, or to write more complicated code that manually closes and re-creates the `EventSource` object if there is a connection error.
+- `EventSource` API应该会自动为您重新连接。然而，如果服务器暂时无法访问，[Firefox中有一个错误](https://bugzilla.mozilla.org/show_bug.cgi?id=1809332)会破坏这一点。解决方法是使用任何其他浏览器，在出现这种情况时手动重新加载页面，或者在出现连接错误时编写更复杂的代码，手动关闭并重新创建`EventSource`对象。
 
-- Browser vendors have decided to not implement HTTP/2 without TLS. This means that when using the `http://` protocol, each `/esbuild` event source will take up one of your precious 6 simultaneous per-domain HTTP/1.1 connections. So if you open more than six HTTP tabs that use this live-reloading technique, you will be unable to use live reloading in some of those tabs (and other things will likely also break). The workaround is to [enable the `https://` protocol](https://esbuild.github.io/api/#https).
+- 浏览器供应商决定不在没有TLS的情况下实现HTTP/2。这意味着，当使用`http://`协议时，每个`/ebuild`事件源将占用宝贵的6个同时每个域http/1.1连接中的一个。因此，如果您打开六个以上使用这种实时重新加载技术的HTTP选项卡，您将无法在其中一些选项卡中使用实时重新加载（其他事情也可能会中断）。解决方法是[启用https://协议](https://esbuild.github.io/api/#https)。
 
-#### Hot-reloading for CSS
+#### CSS热加载
 
-The `change` event also contains additional information to enable more advanced use cases. It currently contains the `added`, `removed`, and `updated` arrays with the paths of the files that have changed since the previous build, which can be described by the following TypeScript interface:
+`change`事件还包含用于启用更高级用例的附加信息。它目前包含`added`、`removed`和`updated`的数组，其中包含自上一次生成以来更改的文件的路径，可以通过以下TypeScript接口进行描述：
 
 ```ts
 interface ChangeEvent {
@@ -744,7 +744,7 @@ interface ChangeEvent {
 }
 ```
 
-The code sample below enables "hot reloading" for CSS, which is when the CSS is automatically updated in place without reloading the page. If an event arrives that isn't CSS-related, then the whole page will be reloaded as a fallback:
+下面的代码示例支持CSS的“热重新加载”，即在不重新加载页面的情况下自动更新CSS。如果出现与CSS无关的事件，则整个页面将作为回退重新加载：
 
 ```js
 new EventSource('/esbuild').addEventListener('change', e => {
@@ -768,13 +768,13 @@ new EventSource('/esbuild').addEventListener('change', e => {
 })
 ```
 
-#### Hot-reloading for JavaScript
+#### JavaScript热加载
 
-Hot-reloading for JavaScript is not currently implemented by esbuild. It's possible to transparently implement hot-reloading for CSS because CSS is stateless, but JavaScript is stateful so you cannot transparently implement hot-reloading for JavaScript like you can for CSS.
+esbuild当前未实现JavaScript的热重新加载。可以透明地实现CSS的热重载，因为CSS是无状态的，但JavaScript是有状态的，所以不能像CSS那样透明地实现JavaScript的热重载。
 
-Some other development servers implement hot-reloading for JavaScript anyway, but it requires additional APIs, sometimes requires framework-specific hacks, and sometimes introduces transient state-related bugs during an editing session. Doing this is outside of esbuild's scope. You are welcome to use other tools instead of esbuild if hot-reloading for JavaScript is one of your requirements.
+其他一些开发服务器无论如何都实现了JavaScript的热重新加载，但它需要额外的API，有时需要特定于框架的黑客攻击，有时还会在编辑会话期间引入与瞬态相关的错误。这样做超出了esbuild的范围。如果JavaScript的热重新加载是您的需求之一，那么欢迎您使用其他工具而不是esbuild。
 
-However, with esbuild's live-reloading you can persist your app's current JavaScript state in [`sessionStorage`](https://developer.mozilla.org/en-US/docs/Web/API/Window/sessionStorage) to more easily restore your app's JavaScript state after a page reload. If your app loads quickly (which it already should for your users' sake), live-reloading with JavaScript can be almost as fast as hot-reloading with JavaScript would be.
+然而，通过esbuild的实时重新加载，您可以在[`sessionStorage`](https://developer.mozilla.org/en-US/docs/Web/API/Window/sessionStorage)中保持应用程序的当前JavaScript状态，以便在页面重新加载后更容易地恢复应用程序的JavaScript状态。如果你的应用程序加载很快（为了用户的利益，它已经应该加载了），那么使用JavaScript的实时重新加载几乎可以像使用JavaScript的热重新加载一样快。
 
 ### Platform
 
