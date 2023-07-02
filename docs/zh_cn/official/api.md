@@ -776,11 +776,11 @@ esbuild当前未实现JavaScript的热重新加载。可以透明地实现CSS的
 
 然而，通过esbuild的实时重新加载，您可以在[`sessionStorage`](https://developer.mozilla.org/en-US/docs/Web/API/Window/sessionStorage)中保持应用程序的当前JavaScript状态，以便在页面重新加载后更容易地恢复应用程序的JavaScript状态。如果你的应用程序加载很快（为了用户的利益，它已经应该加载了），那么使用JavaScript的实时重新加载几乎可以像使用JavaScript的热重新加载一样快。
 
-### Platform
+### 平台
 
-> Supported by: [Build](./api#build) and [Transform](./api#transform)
+> 支持: [Build](./api#build) 和 [Transform](./api#transform)
 
-By default, esbuild's bundler is configured to generate code intended for the browser. If your bundled code is intended to run in node instead, you should set the platform to `node`:
+默认情况下，esbuild的打包器被配置为生成用于浏览器的代码。如果您的打包代码打算在node中运行，则应将平台设置为`node`：
 
 ::: code-group
 
@@ -821,49 +821,51 @@ func main() {
 
 :::
 
-When the platform is set to `browser` (the default value):
+当平台设置为`browser`（默认值）时：
 
-- When [bundling](./api#bundle) is enabled the default output [format](./api#format) is set to `iife`, which wraps the generated JavaScript code in an immediately-invoked function expression to prevent variables from leaking into the global scope.
+- 启用[打包](./api#bundle)后，默认输出[格式](./api#format)设置为`iife`，它将生成的JavaScript代码封装在立即调用的函数表达式中，以防止变量泄漏到全局范围中。
 
-- If a package specifies a map for the [`browser`](https://gist.github.com/defunctzombie/4339901/49493836fb873ddaa4b8a7aa0ef2352119f69211) field in its `package.json` file, esbuild will use that map to replace specific files or modules with their browser-friendly versions. For example, a package might contain a substitution of [`path`](https://nodejs.org/api/path.html) with [`path-browserify`](https://www.npmjs.com/package/path-browserify).
+- 如果包在其`package.json`文件中为[`browser`](https://gist.github.com/defunctzombie/4339901/49493836fb873ddaa4b8a7aa0ef2352119f69211)字段指定了映射，则esbuild将使用该映射将特定文件或模块替换为其浏览器友好版本。例如，一个包可能包含用[`path-browserify`](https://www.npmjs.com/package/path-browserify)替换[`path`](https://nodejs.org/api/path.html)。
 
-- The [main fields](./api#main-fields) setting is set to `browser,module,main` but with some additional special behavior: if a package provides `module` and `main` entry points but not a `browser` entry point then `main` is used instead of `module` if that package is ever imported using `require()`. This behavior improves compatibility with CommonJS modules that export a function by assigning it to `module.exports`. If you want to disable this additional special behavior, you can explicitly set the [main fields](./api#main-fields) setting to `browser,module,main`.
+- [main字段](./api#main-fields)设置设置为`browser,module,main`，但有一些额外的特殊行为：如果一个包提供了`module`和`main`入口点，但没有`browser`入口点，那么如果使用`require()`导入该包，则使用`main`而不是`module`。此行为通过将函数分配给`module.exports`来提高与导出函数的CommonJS模块的兼容性。如果您想禁用此额外的特殊行为，可以将[main字段](./api#main-fields)设置显式设置为`browser,module,main`。
 
-- The [conditions](./api#conditions) setting automatically includes the `browser` condition. This changes how the `exports` field in `package.json` files is interpreted to prefer browser-specific code.
+- [条件](./api#conditions)设置自动包括`browser`条件。这将改变`package.json`文件中的`exports`字段被解释为更喜欢特定于浏览器的代码的方式。
 
-- If no custom [conditions](./api#conditions) are configured, the Webpack-specific `module` condition is also included. The `module` condition is used by package authors to provide a tree-shakable ESM alternative to a CommonJS file without creating a [dual package hazard](https://nodejs.org/api/packages.html#dual-package-hazard). You can prevent the `module` condition from being included by explicitly configuring some custom conditions (even an empty list).
+- 如果未配置自定义[条件](./api#conditions)，则还会包括Webpack特定的 `module`条件。包作者使用 `module`条件为CommonJS文件提供一个树可动摇的ESM替代方案，而不会产生[双包危害](https://nodejs.org/api/packages.html#dual-package-hazard)。您可以通过显式配置某些自定义条件（甚至是空列表）来防止包含`module`条件。
 
-- When using the [build](./api#build) API, all `process.env.NODE_ENV` expressions are automatically [defined](./api#define) to `"production"` if all [minification](./api#minify) options are enabled and `"development"` otherwise. This only happens if `process`, `process.env`, and `process.env.NODE_ENV` are not already defined. This substitution is necessary to avoid React-based code crashing instantly (since `process` is a node API, not a web API).
+- 使用[build](./api#build) API时，如果启用了所有[minification](./api#minify)选项，则所有`process.env.NODE_ENV`表达式都将自动[defined](./api#define)为`"production"`，否则将自动成“开发”。只有在尚未定义`process`, `process.env`和`process.env.NODE_ENV`时才会发生这种情况。为了避免基于反应的代码立即崩溃，这种替换是必要的（因为`process`是node API，而不是web API）。
 
-- The character sequence `</script>` will be escaped in JavaScript code and the character sequence `</style>` will be escaped in CSS code. This is done in case you inline esbuild's output directly into an HTML file. This can be disabled with esbuild's [supported](./api#supported) feature by `setting inline-script` (for JavaScript) and/or `inline-style` (for CSS) to `false`.
+- 字符序列`</script>`将在JavaScript代码中转义，字符序列`</style>`将在CSS代码中转义。这是在您将esbuild的输出直接内联到HTML文件中的情况下完成的。通过将`setting inline-script`（用于JavaScript）和/或`inline-style`（用于CSS）为`false`，可以使用esbuild[支持](./api#supported)的功能禁用此功能。
 
-When the platform is set to `node`:
+当平台设置为`node`时：
 
-- When [bundling](./api#bundle) is enabled the default output [format](./api#format) is set to `cjs`, which stands for CommonJS (the module format used by node). ES6-style exports using `export` statements will be converted into getters on the CommonJS `exports` object.
+- 当启用[打包](./api#bundle)时，默认输出[格式](./api#format)设置为`cjs`，代表CommonJS（node使用的模块格式）。使用`export`语句的ES6样式导出将转换为CommonJS `exports`对象上的getter。
 
-- All [built-in node modules](https://nodejs.org/docs/latest/api/) such as `fs` are automatically marked as [external](./api#external) so they don't cause errors when the bundler tries to bundle them.
+- 所有[内置的node模块](https://nodejs.org/docs/latest/api/)（如`fs`）都会自动标记为[external](./api#external)，这样当打包器试图打包它们时，它们就不会导致错误。
 
-- The [main fields](./api#main-fields) setting is set to `main,module`. This means tree shaking will likely not happen for packages that provide both `module` and `main` since tree shaking works with ECMAScript modules but not with CommonJS modules.
+- [主字段](./api#main-fields)设置设置为`main,module`。这意味着同时提供`module`和`main`的包可能不会发生树摇，因为树摇适用于ECMAScript模块，但不适用于CommonJS模块。
 
-  Unfortunately some packages incorrectly treat `module` as meaning "browser code" instead of "ECMAScript module code" so this default behavior is required for compatibility. You can manually configure the [main fields](./api#main-fields) setting to `module,main` if you want to enable tree shaking and know it is safe to do so.
+  不幸的是，有些包错误地将`module`视为“浏览器代码”，而不是“ECMAScript模块代码”，因此兼容性需要此默认行为。如果您想启用树摇并且知道这样做是安全的，您可以手动将[主字段](./api#main-fields)设置配置为`module,main`。
 
-- The [conditions](./api#conditions) setting automatically includes the `node` condition. This changes how the `exports` field in `package.json` files is interpreted to prefer node-specific code.
+- [条件](./api#conditions)设置自动包括`node`条件。这改变了`package.json`文件中e`xports`字段被解释为更喜欢节点特定代码的方式。
 
-- If no custom [conditions](./api#conditions) are configured, the Webpack-specific `module` condition is also included. The `module` condition is used by package authors to provide a tree-shakable ESM alternative to a CommonJS file without creating a [dual package hazard](https://nodejs.org/api/packages.html#dual-package-hazard). You can prevent the `module` condition from being included by explicitly configuring some custom conditions (even an empty list).
+- 如果未配置自定义[条件](./api#conditions)，则还会包括Webpack特定的`module`条件。包作者使用`module`条件为CommonJS文件提供一个树摇的ESM替代方案，而不会产生[双包危害](https://nodejs.org/api/packages.html#dual-package-hazard)。您可以通过显式配置某些自定义条件（甚至是空列表）来防止包含`module`条件。
 
-- When the [format](./api#format) is set to `cjs` but the entry point is ESM, esbuild will add special annotations for any named exports to enable importing those named exports using ESM syntax from the resulting CommonJS file. Node's documentation has more information about [node's detection of CommonJS named exports](https://nodejs.org/api/esm.html#commonjs-namespaces).
+- 当[format](./api#format)设置为`cjs`但入口点为ESM时，esbuild将为任何命名导出添加特殊注释，以便能够使用ESM语法从生成的CommonJS文件中导入这些命名导出。Node的文档提供了有关[Node检测CommonJS命名导出](https://nodejs.org/api/esm.html#commonjs-namespaces)的更多信息。
 
-- The [`binary`](./content-types/#binary) loader will make use of node's built-in [`Buffer.from`](https://nodejs.org/api/buffer.html#static-method-bufferfromstring-encoding) API to decode the base64 data embedded in the bundle into a `Uint8Array`. This is faster than what esbuild can do otherwise since it's implemented by node in native code.
+- [`binary`](./content-types/#binary)加载器将利用节点的内置[`Buffer.from`](https://nodejs.org/api/buffer.html#static-method-bufferfromstring-encoding) API将包中嵌入的base64数据解码为`Uint8Array`。这比esbuild在其他情况下所能做的更快，因为它是由本机代码中的节点实现的。
 
-When the platform is set to `neutral`:
+当平台设置为`neutral`时：
 
-- When [bundling](./api#bundle) is enabled the default output [format](./api#format) is set to `esm`, which uses the `export` syntax introduced with ECMAScript 2015 (i.e. ES6). You can change the output format if this default is not appropriate.
+- 当启用[bundling](./api#bundle)时，默认输出[format](./api#format)设置为`esm`，它使用ECMAScript 2015（即ES6）引入的`export`语法。如果此默认设置不合适，则可以更改输出格式。
 
-- The [main fields](./api#main-fields) setting is empty by default. If you want to use npm-style packages, you will likely have to configure this to be something else such as main for the standard `main` field used by node.
+- 默认情况下，[主字段](./api#main-fields)设置为空。如果您想使用npm样式的包，您可能需要将其配置为其他内容，例如node使用的标准main字段的`main`。
 
 - The [conditions](./api#conditions) setting does not automatically include any platform-specific values.
 
-See also [bundling for the browser](./getting-started/#bundling-for-the-browser) and [bundling for node](./getting-started/#bundling-for-node).
+- [conditions](./api#conditions)设置不会自动包括任何特定于平台的值。
+
+另请参见[浏览器的打包](./getting-started/#bundling-for-the-browser)和[node的打包](./getting-started/#bundling-for-node)。
 
 ### Rebuild
 
