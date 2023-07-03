@@ -860,13 +860,13 @@ See also [bundling for the browser](./getting-started/#bundling-for-the-browser)
 
 ### Rebuild
 
-> Supported by: [Build]()
+> Supported by: [Build](./api#build)
 
-You may want to use this API if your use case involves calling esbuild's [build]() API repeatedly with the same options. For example, this is useful if you are implementing your own file watcher service. Rebuilding is more efficient than building again because some of the data from the previous build is cached and can be reused if the original files haven't changed since the previous build. There are currently two forms of caching used by the rebuild API:
+You may want to use this API if your use case involves calling esbuild's [build](./api#build) API repeatedly with the same options. For example, this is useful if you are implementing your own file watcher service. Rebuilding is more efficient than building again because some of the data from the previous build is cached and can be reused if the original files haven't changed since the previous build. There are currently two forms of caching used by the rebuild API:
 
-Files are stored in memory and are not re-read from the file system if the file metadata hasn't changed since the last build. This optimization only applies to file system paths. It does not apply to virtual modules created by [plugins]().
+- Files are stored in memory and are not re-read from the file system if the file metadata hasn't changed since the last build. This optimization only applies to file system paths. It does not apply to virtual modules created by [plugins](./plugins/).
 
-Parsed [ASTs]() are stored in memory and re-parsing the AST is avoided if the file contents haven't changed since the last build. This optimization applies to virtual modules created by plugins in addition to file system modules, as long as the virtual module path remains the same.
+- Parsed [ASTs](https://en.wikipedia.org/wiki/Abstract_syntax_tree) are stored in memory and re-parsing the AST is avoided if the file contents haven't changed since the last build. This optimization applies to virtual modules created by plugins in addition to file system modules, as long as the virtual module path remains the same.
 
 Here's how to do a rebuild: {.ignore-linkage}
 
