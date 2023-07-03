@@ -867,22 +867,22 @@ func main() {
 
 另请参见[浏览器的打包](./getting-started/#bundling-for-the-browser)和[node的打包](./getting-started/#bundling-for-node)。
 
-### Rebuild
+### 重新构建
 
-> Supported by: [Build]()
+> 支持: [Build](./api#build)
 
-You may want to use this API if your use case involves calling esbuild's [build]() API repeatedly with the same options. For example, this is useful if you are implementing your own file watcher service. Rebuilding is more efficient than building again because some of the data from the previous build is cached and can be reused if the original files haven't changed since the previous build. There are currently two forms of caching used by the rebuild API:
+如果您的用例涉及使用相同的选项重复调用esbuild的[build](./api#build) API，您可能希望使用此API。例如，如果您正在实现自己的文件观察程序服务，这将非常有用。重新生成比重新生成更有效率，因为上一次生成中的一些数据是缓存的，如果原始文件自上一次构建以来没有更改，则可以重用。rebuild API目前使用两种形式的缓存：
 
-Files are stored in memory and are not re-read from the file system if the file metadata hasn't changed since the last build. This optimization only applies to file system paths. It does not apply to virtual modules created by [plugins]().
+- 文件存储在内存中，如果文件元数据自上次生成以来没有更改，则不会从文件系统中重新读取。此优化仅适用于文件系统路径。它不适用于[插件](./plugins/)创建的虚拟模块。
 
-Parsed [ASTs]() are stored in memory and re-parsing the AST is avoided if the file contents haven't changed since the last build. This optimization applies to virtual modules created by plugins in addition to file system modules, as long as the virtual module path remains the same.
+- 解析的[ASTs](https://en.wikipedia.org/wiki/Abstract_syntax_tree)存储在内存中，如果文件内容自上次构建以来没有更改，则可以避免重新解析AST。只要虚拟模块路径保持不变，这种优化不仅适用于文件系统模块，还适用于插件创建的虚拟模块。
 
-Here's how to do a rebuild: {.ignore-linkage}
+以下是如何进行重新构建： {.ignore-linkage}
 
 ::: code-group {.ignore-linkage}
 
 ```bash [CLI]
-# The CLI does not have an API for "rebuild"
+# CLI没有用于"rebuild"的API
 ```
 
 ```js [JS]
@@ -894,12 +894,12 @@ let ctx = await esbuild.context({
   outfile: 'out.js',
 })
 
-// Call "rebuild" as many times as you want
+// 可调用"Rebuild"任意次数
 for (let i = 0; i < 5; i++) {
   let result = await ctx.rebuild()
 }
 
-// Call "dispose" when you're done to free up resources
+// 完成释放资源后调用"Dispose"
 ctx.dispose()
 ```
 
@@ -919,7 +919,7 @@ func main() {
     os.Exit(1)
   }
 
-  // Call "Rebuild" as many times as you want
+  // 可调用"Rebuild"任意次数
   for i := 0; i < 5; i++ {
     result := ctx.Rebuild()
     if len(result.Errors) > 0 {
@@ -927,7 +927,7 @@ func main() {
     }
   }
 
-  // Call "Dispose" when you're done to free up resources
+  // 完成释放资源后调用"Dispose"
   ctx.Dispose()
 }
 ```
