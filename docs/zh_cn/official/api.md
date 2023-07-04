@@ -934,17 +934,17 @@ func main() {
 
 :::
 
-### Serve
+### 服务
 
-> Supported by: [Build](./api#build)
+> 支持: [Build](./api#build)
 
 ::: info
 
-If you want your app to automatically reload as you edit, you should read about [live reloading](./api#live-reload). It combines serve mode with [watch mode](./api#watch) to listen for changes to the file system.
+如果你想让你的应用程序在编辑时自动重新加载，你应该阅读有关[实时重新加载](./api#live-reload)的信息。它将服务模式与[监视模式](./api#watch)相结合，以侦听对文件系统的更改。
 
 :::
 
-Serve mode starts a web server that serves your code to your browser on your device. Here's an example that bundles `src/app.ts` into `www/js/app.js` and then also serves the www directory over `http://localhost:8000/`:
+服务模式启动一个web服务器，该服务器将您的代码提供给设备上的浏览器。这里有一个示例，它将`src/app.ts`绑定到`www/js/app.js`中，然后还通过`http://localhost:8000/`:
 
 ::: code-group
 
@@ -997,19 +997,19 @@ func main() {
 
 :::
 
-If you create the file `www/index.html` with the following contents, the code contained in `src/app.ts` will load when you navigate to `http://localhost:8000/`:
+如果您创建了包含以下内容的文件`www/index.html`，则当您导航到时，`src/app.ts`中包含的代码将加载`http://localhost:8000/`:
 
 ```html
 <script src="js/app.js"></script>
 ```
 
-One benefit of using esbuild's built-in web server instead of another web server is that whenever you reload, the files that esbuild serves are always up to date. That's not necessarily the case with other development setups. One common setup is to run a local file watcher that rebuilds output files whenever their input files change, and then separately to run a local file server to serve those output files. But that means reloading after an edit may reload the old output files if the rebuild hasn't finished yet. With esbuild's web server, each incoming request starts a rebuild if one is not already in progress, and then waits for the current rebuild to complete before serving the file. This means esbuild never serves stale build results.
+使用esbuild的内置web服务器而不是另一个web服务器的一个好处是，无论何时重新加载，esbuild提供的文件都是最新的。其他开发设置不一定是这样。一种常见的设置是运行本地文件观察器，每当输出文件的输入文件发生更改时，该观察器就会重新构建输出文件，然后单独运行本地文件服务器来为这些输出文件提供服务。但这意味着，如果重建尚未完成，编辑后重新加载可能会重新加载旧的输出文件。对于esbuild的web服务器，如果尚未进行重建，则每个传入请求都会启动重建，然后等待当前重建完成后再提供文件。这意味着esbuild从不提供过时的生成结果。
 
-Note that this web server is intended to only be used in development. *Do not use this in production*.
+请注意，此web服务器仅用于开发*请勿在生产中使用此选项*。
 
-#### Arguments
+#### 参数
 
-The arguments to the serve API are as follows:
+服务API的参数如下：
 
 ::: code-group
 
@@ -1075,29 +1075,29 @@ type ServeOnRequestArgs struct {
 
 - `host`
 
-By default, esbuild makes the web server available on all IPv4 network interfaces. This corresponds to a host address of `0.0.0.0`. If you would like to configure a different host (for example, to only serve on the `127.0.0.1` loopback interface without exposing anything to the network), you can specify the host using this argument.
+默认情况下，esbuild使web服务器在所有IPv4网络接口上都可用。这对应于`0.0.0.0`的主机地址。如果您想配置不同的主机（例如，只在`127.0.0.1`环回接口上提供服务，而不向网络公开任何内容），您可以使用此参数指定主机。
 
-If you need to use IPv6 instead of IPv4, you just need to specify an IPv6 host address. The equivalent to the `127.0.0.1` loopback interface in IPv6 is `::1` and the equivalent to the `0.0.0.0` universal interface in IPv6 is `::`.
+如果你需要使用IPv6而不是IPv4，你只需要指定一个IPv6主机地址。等效于IPv6中的`127.0.0.1`环回接口是`::1`，等效于IPv6的`0.0.0.0`通用接口是`::`。
 
 - `port`
 
-The HTTP port can optionally be configured here. If omitted, it will default to an open port with a preference for ports in the range 8000 to 8009.
+HTTP端口可以选择在此处进行配置。如果省略，则默认为打开端口，首选端口范围为8000到8009。
 
 - `servedir`
 
-This is a directory of extra content for esbuild's HTTP server to serve instead of a 404 when incoming requests don't match any of the generated output file paths. This lets you use esbuild as a general-purpose local web server.
+当传入的请求与生成的任何输出文件路径都不匹配时，这是esbuild的HTTP服务器要服务的额外内容目录，而不是404。这使您可以将esbuild用作通用的本地web服务器。
 
-For example, you might want to create an `index.html` file and then set `servedir` to `"."` to serve the current directory (which includes the `index.html` file). If you don't set `servedir` then esbuild will only serve the build results, but not any other files.
+例如，您可能想要创建一个`index.html`文件，然后将`servedir`设置为`"."`以服务于当前目录（包括`index.html`文件）。如果不设置`servedir`，那么esbuild将只提供生成结果，而不提供任何其他文件。
 
-- `keyfile` and `certfile`
+- `keyfile` 和 `certfile`
 
-If you pass a private key and certificate to esbuild using `keyfile` and `certfile`, then esbuild's web server will use the `https://` protocol instead of the `http://` protocol. See [enabling HTTPS](./api#https) for more information.
+如果使用`keyfile`和`certfile`将私钥和证书传递给esbuild，那么esbuild的web服务器将使用`https://`协议而不是`http://`协议。有关详细信息，请参阅[启用HTTPS](./api#https)。
 
 - `onRequest`
 
-This is called once for each incoming request with some information about the request. This callback is used by the CLI to print out a log message for each request. The time field is the time to generate the data for the request, but it does not include the time to stream the request to the client.
+对于每个传入的请求以及有关请求的一些信息，都会调用一次。CLI使用此回调来打印每个请求的日志消息。时间字段是为请求生成数据的时间，但不包括将请求流式传输到客户端的时间。
 
-Note that this is called after the request has completed. It's not possible to use this callback to modify the request in any way. If you want to do this, you should [put a proxy in front of esbuild](./api#serve-proxy) instead.
+请注意，这是在请求完成后调用的。无法使用此回调以任何方式修改请求。如果你想这样做，你应该在[esbuild前面放一个代理](./api#serve-proxy)。
 
 #### Return values
 
