@@ -1099,12 +1099,12 @@ HTTP端口可以选择在此处进行配置。如果省略，则默认为打开�
 
 请注意，这是在请求完成后调用的。无法使用此回调以任何方式修改请求。如果你想这样做，你应该在[esbuild前面放一个代理](./api#serve-proxy)。
 
-#### Return values
+#### 返回值
 
 ::: code-group
 
 ```bash [CLI]
-# The CLI will print the host and port like this:
+# CLI将会打印主机和端口，见如下：
 
  > Local: http://127.0.0.1:8000/
 ```
@@ -1125,11 +1125,11 @@ type ServeResult struct {
 
 - `host`
 
-This is the host that ended up being used by the web server. It will be `0.0.0.0` (i.e. serving on all available network interfaces) unless a custom host was configured. If you are using the CLI and the host is `0.0.0.0`, all available network interfaces will be printed as hosts instead.
+这是最终被web服务器使用的主机。除非配置了自定义主机，否则它将是`0.0.0.0`（即在所有可用的网络接口上服务）。如果使用CLI，并且主机为`0.0.0.0`，则所有可用的网络接口都将打印为主机。
 
 - `port`
 
-This is the port that ended up being used by the web server. You'll want to use this if you don't specify a port since esbuild will end up picking an arbitrary open port, and you need to know which port it picked to be able to connect to it.
+这是最终被web服务器使用的端口。如果不指定端口，则需要使用此选项，因为esbuild最终会选择任意打开的端口，并且您需要知道它选择了哪个端口才能连接到它。
 
 :::
 
